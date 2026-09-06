@@ -1,0 +1,9 @@
+node_modules/
+.next/
+.env*
+!.env.example
+.wardyn/
+coverage/
+*.tsbuildinfo
+test-results/
+playwright-report/
