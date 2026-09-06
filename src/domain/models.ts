@@ -9,7 +9,7 @@ export type AssetBalance = z.infer<typeof balanceSchema>;
 export const snapshotSchema = z.object({ asset: assetSchema, priceUsdt: decimalString.refine(v => Number(v) > 0), change24hPct: z.number().finite(), volume24hUsdt: decimalString, volatilityPct: z.number().finite().nonnegative(), observedAt: z.string().datetime() });
 export type MarketSnapshot = z.infer<typeof snapshotSchema>;
 export type Position = AssetBalance & { priceUsdt: string; valueUsdt: string; allocationPct: number; pnlPct: number | null; pnlUsdt: string | null; drawdownPct: number | null; volatilityPct: number; change24hPct: number };
-export type Portfolio = { positions: Position[]; totalValueUsdt: string; stableReservePct: number; observedAt: string; source: 'demo' | 'binance-mcp' | 'binance-public' };
+export type Portfolio = { positions: Position[]; totalValueUsdt: string; stableReservePct: number; observedAt: string; source: 'demo' | 'binance-cli' | 'binance-mcp' | 'binance-public' };
 export type DecisionKind = 'HOLD' | 'REDUCE' | 'EXIT' | 'REBALANCE';
 export type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
 export type RiskAssessment = { score: number; level: RiskLevel; breakdown: { factor: string; points: number; explanation: string }[] };
