@@ -6,16 +6,24 @@ import { decide } from './decisions';
 import { approveReceipt, createReceipt } from './actions';
 test('approval preserves evidence, reallocates SOL to 29%, and verifies reserve', async () => {
   const provider = new DemoProvider('concentration');
-  const p = calculatePortfolio(await provider.getBalances(), await provider.getMarketSnapshots(), 'demo');
-  const d = decide(p, defaultPolicy).find(d => d.asset === 'SOL')!;
+  const p = calculatePortfolio(
+    await provider.getBalances(),
+    await provider.getMarketSnapshots(),
+    'demo',
+  );
+  const d = decide(p, defaultPolicy).find((d) => d.asset === 'SOL')!;
   const receipt = createReceipt(d, p, defaultPolicy);
   const approved = approveReceipt(receipt, p, defaultPolicy);
-  expect(approved.before.positions.find(p => p.asset === 'SOL')?.allocationPct).toBeCloseTo(34);
-  expect(approved.after?.positions.find(p => p.asset === 'SOL')?.allocationPct).toBeCloseTo(29);
+  expect(approved.before.positions.find((p) => p.asset === 'SOL')?.allocationPct).toBeCloseTo(34);
+  expect(approved.after?.positions.find((p) => p.asset === 'SOL')?.allocationPct).toBeCloseTo(29);
   expect(approved.after?.stableReservePct).toBeCloseTo(18);
   expect(approved.after?.totalValueUsdt).toBe(p.totalValueUsdt);
   expect(approved.verified).toBe(true);
   expect(receipt.status).toBe('PENDING');
-  expect(() => approveReceipt(approved, approved.after!, defaultPolicy)).toThrow('no longer pending');
-  expect(() => approveReceipt(receipt, p, defaultPolicy, new Date(Date.now() + 180000))).toThrow('expired');
+  expect(() => approveReceipt(approved, approved.after!, defaultPolicy)).toThrow(
+    'no longer pending',
+  );
+  expect(() => approveReceipt(receipt, p, defaultPolicy, new Date(Date.now() + 180000))).toThrow(
+    'expired',
+  );
 });

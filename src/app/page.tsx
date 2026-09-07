@@ -2,5 +2,109 @@ import Link from 'next/link';
 import { ArrowRight, ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
 import { Brand } from '../components/shell';
 export default function Home() {
-  return <main className="landing"><nav className="landing-nav"><Brand/><div><a href="https://github.com/0xnald/wardyn" target="_blank" rel="noreferrer">View GitHub <ArrowUpRight size={13}/></a><Link href="/workspace" className="button secondary">Launch Wardyn<ArrowRight size={15}/></Link></div></nav><section className="hero"><div><div className="eyebrow">YOUR POST-ENTRY ADVANTAGE</div><h1>Your positions<br/>never go<br/><span>unwatched.</span></h1><p>Most AI agents help you enter trades. Wardyn manages what happens after you enter — watching your positions, enforcing your rules, and explaining every decision.</p><div className="hero-actions"><Link className="button primary" href="/workspace">Launch Wardyn<ArrowRight size={17}/></Link><Link className="button secondary" href="/workspace/watch">Run demo</Link></div><div className="hero-note"><ShieldCheck size={15}/>Starts with simulated funds. Approval stays with you.</div></div><div className="receipt hero-receipt" aria-label="Illustrative Wardyn receipt"><div className="receipt-header"><div><strong>Wardyn Receipt <span className="muted">#0042</span></strong><small>ILLUSTRATIVE DEMO · SOL / USDT</small></div><ShieldCheck size={24} className="positive"/></div><div className="receipt-body"><span className="decision-word reduce">REDUCE</span><h3>A winner. Not a reason<br/>to lose your balance.</h3><p>SOL is profitable, but now exceeds your concentration limit. Reduce only enough to bring it back within policy.</p><div className="evidence-grid"><div><span>Current allocation</span><strong>34.0%</strong></div><div><span>Your maximum</span><strong>30.0%</strong></div></div><span className="trigger-tag">Maximum asset allocation: 30%</span><div className="effect-row section-gap"><span>SOL allocation</span><strong>34% → 29%</strong></div><div className="effect-row"><span>Stable reserve</span><strong>13% → 18%</strong></div></div><div className="receipt-footer"><span><Check size={12}/> A clear reason. A measured action.</span><span>Approval required</span></div></div></section><div className="workflow">{['Observe','Analyze','Decide','Act','Verify','Receipt'].map((step,i) => <span key={step}><small>0{i+1}</small>{step}</span>)}</div><footer className="landing-footer"><span>Wardyn · Your rules. Your positions. Your control.</span><span>Built for Binance Agent OS Mini Hackathon · Track A</span></footer></main>;
+  return (
+    <main className="landing">
+      <nav className="landing-nav">
+        <Brand />
+        <div>
+          <a href="https://github.com/0xnald/wardyn" target="_blank" rel="noreferrer">
+            View GitHub <ArrowUpRight size={13} />
+          </a>
+          <Link href="/workspace" className="button secondary">
+            Launch Wardyn
+            <ArrowRight size={15} />
+          </Link>
+        </div>
+      </nav>
+      <section className="hero">
+        <div>
+          <div className="eyebrow">YOUR POST-ENTRY ADVANTAGE</div>
+          <h1>
+            Your positions
+            <br />
+            never go
+            <br />
+            <span>unwatched.</span>
+          </h1>
+          <p>
+            Most AI agents help you enter trades. Wardyn manages what happens after you enter —
+            watching your positions, enforcing your rules, and explaining every decision.
+          </p>
+          <div className="hero-actions">
+            <Link className="button primary" href="/workspace">
+              Launch Wardyn
+              <ArrowRight size={17} />
+            </Link>
+            <Link className="button secondary" href="/workspace/watch">
+              Run demo
+            </Link>
+          </div>
+          <div className="hero-note">
+            <ShieldCheck size={15} />
+            Starts with simulated funds. Approval stays with you.
+          </div>
+        </div>
+        <div className="receipt hero-receipt" aria-label="Illustrative Wardyn receipt">
+          <div className="receipt-header">
+            <div>
+              <strong>
+                Wardyn Receipt <span className="muted">#0042</span>
+              </strong>
+              <small>ILLUSTRATIVE DEMO · SOL / USDT</small>
+            </div>
+            <ShieldCheck size={24} className="positive" />
+          </div>
+          <div className="receipt-body">
+            <span className="decision-word reduce">REDUCE</span>
+            <h3>
+              A winner. Not a reason
+              <br />
+              to lose your balance.
+            </h3>
+            <p>
+              SOL is profitable, but now exceeds your concentration limit. Reduce only enough to
+              bring it back within policy.
+            </p>
+            <div className="evidence-grid">
+              <div>
+                <span>Current allocation</span>
+                <strong>34.0%</strong>
+              </div>
+              <div>
+                <span>Your maximum</span>
+                <strong>30.0%</strong>
+              </div>
+            </div>
+            <span className="trigger-tag">Maximum asset allocation: 30%</span>
+            <div className="effect-row section-gap">
+              <span>SOL allocation</span>
+              <strong>34% → 29%</strong>
+            </div>
+            <div className="effect-row">
+              <span>Stable reserve</span>
+              <strong>13% → 18%</strong>
+            </div>
+          </div>
+          <div className="receipt-footer">
+            <span>
+              <Check size={12} /> A clear reason. A measured action.
+            </span>
+            <span>Approval required</span>
+          </div>
+        </div>
+      </section>
+      <div className="workflow">
+        {['Observe', 'Analyze', 'Decide', 'Act', 'Verify', 'Receipt'].map((step, i) => (
+          <span key={step}>
+            <small>0{i + 1}</small>
+            {step}
+          </span>
+        ))}
+      </div>
+      <footer className="landing-footer">
+        <span>Wardyn · Your rules. Your positions. Your control.</span>
+        <span>Built for Binance Agent OS Mini Hackathon · Track A</span>
+      </footer>
+    </main>
+  );
 }

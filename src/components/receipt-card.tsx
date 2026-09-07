@@ -4,11 +4,169 @@ import { Check, Download, ShieldCheck, X } from 'lucide-react';
 import type { WardynReceipt } from '../domain/models';
 import { useWorkspace } from './workspace-context';
 import { amount, pct, time, usd } from './format';
-export function ReceiptCard({ receipt, expanded = false }: { receipt: WardynReceipt; expanded?: boolean }) {
-  const { busy, mutate, state } = useWorkspace(); const dialog = useRef<HTMLDialogElement>(null);
-  const d = receipt.decision; const after = receipt.after ?? receipt.expectedAfter;
-  const beforeWeight = receipt.before.positions.find(p => p.asset === d.asset)?.allocationPct ?? 0;
-  const afterWeight = after?.positions.find(p => p.asset === d.asset)?.allocationPct ?? 0;
-  function download() { const url = URL.createObjectURL(new Blob([JSON.stringify(receipt,null,2)], { type: 'application/json' })); const link = document.createElement('a'); link.href=url; link.download=`wardyn-receipt-${receipt.id}.json`; link.click(); URL.revokeObjectURL(url); }
-  return <article className="receipt"><div className="receipt-header"><div><strong>Wardyn Receipt <span className="muted">#{receipt.id.slice(0,6)}</span></strong><small>{new Date(receipt.createdAt).toLocaleDateString('en-GB')} · {time(receipt.createdAt)} · {receipt.before.source === 'demo' ? 'Simulation' : 'Live account data'}</small></div><ShieldCheck size={23} className="positive"/></div><div className="receipt-body"><span className={`decision-word ${d.decision.toLowerCase()}`}>{d.decision}</span><h3>{d.asset}{d.asset !== 'PORTFOLIO' && '/USDT'}{d.trade ? ` · ${pct(d.trade.positionPct)} reduction` : ' · Keep watching'}</h3><p>{d.reasons.join(' ')}</p><div className="evidence-grid">{d.evidence.slice(0, expanded ? 6 : 4).map(e => <div key={e.label}><span>{e.label}</span><strong>{e.value}</strong></div>)}</div>{d.triggers.map(t => <span className="trigger-tag" key={`${t.asset}-${t.rule}`}>{t.rule}: {pct(t.actualPct)} / {pct(t.limitPct)}</span>)}{after && <div className="section-gap"><div className="eyebrow">{receipt.after ? 'VERIFIED RESULT' : 'EXPECTED EFFECT · BEFORE FEES'}</div><div className="effect-row"><span>{d.asset} allocation</span><strong>{pct(beforeWeight)} → {pct(afterWeight)}</strong></div><div className="effect-row"><span>Stable reserve</span><strong>{pct(receipt.before.stableReservePct)} → {pct(after.stableReservePct)}</strong></div><div className="effect-row"><span>Estimated proceeds</span><strong>{usd(d.trade!.estimatedProceedsUsdt)}</strong></div></div>}{receipt.verification && <p className="inline-note">{receipt.verification}</p>}<details className="evidence-details" open={expanded}><summary>Decision audit</summary><p>Confidence: {d.confidence === 'INSUFFICIENT_DATA' ? 'insufficient history for all protection checks' : 'rule confirmed'}. This is not a probability of profit. {d.trade ? `Sell ${amount(d.trade.quantity)} ${d.trade.asset}. ` : ''}Simulations use the quoted price and exclude fees, spread, and slippage.</p><p className="inline-note">Source: {receipt.before.source}. Policy triggers and the original portfolio are preserved in the downloadable receipt.</p></details>{receipt.status === 'PENDING' && <div className="receipt-actions"><button className="button primary" disabled={busy || state?.portfolio.source !== 'demo'} onClick={() => dialog.current?.showModal()}><Check size={15}/>{state?.portfolio.source === 'demo' ? 'Approve action' : 'Execution unavailable'}</button><button className="button secondary" disabled={busy} onClick={() => void mutate({ command:'action', receiptId:receipt.id, approve:false })}><X size={15}/>Reject</button></div>}</div><div className="receipt-footer"><span>{receipt.status === 'SIMULATED' ? receipt.verified ? '✓ Simulated · verified' : 'Simulated · limits remain' : receipt.status.replaceAll('_',' ')}</span><button onClick={download} aria-label={`Download receipt ${receipt.id.slice(0,6)}`}><Download size={14}/> JSON</button></div><dialog ref={dialog} className="approval-dialog"><h2>Approve simulated action?</h2><p>Sell <strong>{amount(d.trade?.quantity ?? '0')} {d.asset}</strong> for an estimated <strong>{usd(d.trade?.estimatedProceedsUsdt ?? '0')}</strong>.</p><p className="inline-note">This updates only your demo portfolio. No exchange order is placed. Review the original receipt if the proposal has changed.</p><div className="receipt-actions"><button className="button secondary" onClick={() => dialog.current?.close()}>Cancel</button><button className="button primary" disabled={busy} onClick={async () => { await mutate({ command:'action', receiptId:receipt.id, approve:true }); dialog.current?.close(); }}>Confirm simulation</button></div></dialog></article>;
+export function ReceiptCard({
+  receipt,
+  expanded = false,
+}: {
+  receipt: WardynReceipt;
+  expanded?: boolean;
+}) {
+  const { busy, mutate, state } = useWorkspace();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const d = receipt.decision;
+  const after = receipt.after ?? receipt.expectedAfter;
+  const beforeWeight =
+    receipt.before.positions.find((p) => p.asset === d.asset)?.allocationPct ?? 0;
+  const afterWeight = after?.positions.find((p) => p.asset === d.asset)?.allocationPct ?? 0;
+  function download() {
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(receipt, null, 2)], { type: 'application/json' }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `wardyn-receipt-${receipt.id}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+  return (
+    <article className="receipt">
+      <div className="receipt-header">
+        <div>
+          <strong>
+            Wardyn Receipt <span className="muted">#{receipt.id.slice(0, 6)}</span>
+          </strong>
+          <small>
+            {new Date(receipt.createdAt).toLocaleDateString('en-GB')} · {time(receipt.createdAt)} ·{' '}
+            {receipt.before.source === 'demo' ? 'Simulation' : 'Live account data'}
+          </small>
+        </div>
+        <ShieldCheck size={23} className="positive" />
+      </div>
+      <div className="receipt-body">
+        <span className={`decision-word ${d.decision.toLowerCase()}`}>{d.decision}</span>
+        <h3>
+          {d.asset}
+          {d.asset !== 'PORTFOLIO' && '/USDT'}
+          {d.trade ? ` · ${pct(d.trade.positionPct)} reduction` : ' · Keep watching'}
+        </h3>
+        <p>{d.reasons.join(' ')}</p>
+        <div className="evidence-grid">
+          {d.evidence.slice(0, expanded ? 6 : 4).map((e) => (
+            <div key={e.label}>
+              <span>{e.label}</span>
+              <strong>{e.value}</strong>
+            </div>
+          ))}
+        </div>
+        {d.triggers.map((t) => (
+          <span className="trigger-tag" key={`${t.asset}-${t.rule}`}>
+            {t.rule}: {pct(t.actualPct)} / {pct(t.limitPct)}
+          </span>
+        ))}
+        {after && (
+          <div className="section-gap">
+            <div className="eyebrow">
+              {receipt.after ? 'VERIFIED RESULT' : 'EXPECTED EFFECT · BEFORE FEES'}
+            </div>
+            <div className="effect-row">
+              <span>{d.asset} allocation</span>
+              <strong>
+                {pct(beforeWeight)} → {pct(afterWeight)}
+              </strong>
+            </div>
+            <div className="effect-row">
+              <span>Stable reserve</span>
+              <strong>
+                {pct(receipt.before.stableReservePct)} → {pct(after.stableReservePct)}
+              </strong>
+            </div>
+            <div className="effect-row">
+              <span>Estimated proceeds</span>
+              <strong>{usd(d.trade!.estimatedProceedsUsdt)}</strong>
+            </div>
+          </div>
+        )}
+        {receipt.verification && <p className="inline-note">{receipt.verification}</p>}
+        <details className="evidence-details" open={expanded}>
+          <summary>Decision audit</summary>
+          <p>
+            Confidence:{' '}
+            {d.confidence === 'INSUFFICIENT_DATA'
+              ? 'insufficient history for all protection checks'
+              : 'rule confirmed'}
+            . This is not a probability of profit.{' '}
+            {d.trade ? `Sell ${amount(d.trade.quantity)} ${d.trade.asset}. ` : ''}Simulations use
+            the quoted price and exclude fees, spread, and slippage.
+          </p>
+          <p className="inline-note">
+            Source: {receipt.before.source}. Policy triggers and the original portfolio are
+            preserved in the downloadable receipt.
+          </p>
+        </details>
+        {receipt.status === 'PENDING' && (
+          <div className="receipt-actions">
+            <button
+              className="button primary"
+              disabled={busy || state?.portfolio.source !== 'demo'}
+              onClick={() => dialog.current?.showModal()}
+            >
+              <Check size={15} />
+              {state?.portfolio.source === 'demo' ? 'Approve action' : 'Execution unavailable'}
+            </button>
+            <button
+              className="button secondary"
+              disabled={busy}
+              onClick={() =>
+                void mutate({ command: 'action', receiptId: receipt.id, approve: false })
+              }
+            >
+              <X size={15} />
+              Reject
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="receipt-footer">
+        <span>
+          {receipt.status === 'SIMULATED'
+            ? receipt.verified
+              ? '✓ Simulated · verified'
+              : 'Simulated · limits remain'
+            : receipt.status.replaceAll('_', ' ')}
+        </span>
+        <button onClick={download} aria-label={`Download receipt ${receipt.id.slice(0, 6)}`}>
+          <Download size={14} /> JSON
+        </button>
+      </div>
+      <dialog ref={dialog} className="approval-dialog">
+        <h2>Approve simulated action?</h2>
+        <p>
+          Sell{' '}
+          <strong>
+            {amount(d.trade?.quantity ?? '0')} {d.asset}
+          </strong>{' '}
+          for an estimated <strong>{usd(d.trade?.estimatedProceedsUsdt ?? '0')}</strong>.
+        </p>
+        <p className="inline-note">
+          This updates only your demo portfolio. No exchange order is placed. Review the original
+          receipt if the proposal has changed.
+        </p>
+        <div className="receipt-actions">
+          <button className="button secondary" onClick={() => dialog.current?.close()}>
+            Cancel
+          </button>
+          <button
+            className="button primary"
+            disabled={busy}
+            onClick={async () => {
+              await mutate({ command: 'action', receiptId: receipt.id, approve: true });
+              dialog.current?.close();
+            }}
+          >
+            Confirm simulation
+          </button>
+        </div>
+      </dialog>
+    </article>
+  );
 }

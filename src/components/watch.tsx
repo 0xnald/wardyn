@@ -4,6 +4,97 @@ import { useWorkspace } from './workspace-context';
 import { ScenarioControl } from './dashboard';
 import { time } from './format';
 export function Watch() {
-  const { state, busy, mutate } = useWorkspace(); if (!state) return null;
-  return <><div className="page-heading"><div><div className="eyebrow">OBSERVE → ANALYZE → DECIDE → ACT → VERIFY → RECEIPT</div><h1>Wardyn Watch.</h1><p>A visible record of your agent at work.</p></div><button className="button primary" disabled={busy} onClick={() => void mutate({ command:'monitor',enabled:!state.monitoring })}>{state.monitoring ? <Pause size={16}/> : <Play size={16}/>}{state.monitoring ? 'Pause Watch' : 'Start Watch'}</button></div><div className="watch-strip"><Activity size={16}/><span>{state.monitoring ? 'Watching every 30 seconds while this tab is visible.' : 'Monitoring is paused. Start Watch or run a manual scan.'}</span></div><div className="two-column"><div className="main-column">{state.runs.slice(0,15).map(run => <section className="panel" key={run.id}><div className="panel-heading"><div><h2>{run.events[0]?.stage === 'VERIFY' ? 'Action verification' : 'Portfolio scan'} <span className="muted">{time(run.startedAt)}</span></h2><p>{new Date(run.startedAt).toLocaleDateString('en-GB')} · Run {run.id.slice(0,8)}</p></div><span className="status">{run.risk.level} RISK</span></div><div className="timeline">{run.events.map((event,i) => <div className="timeline-event" key={i}><time>{time(event.timestamp)}</time><div><small>{event.stage}</small><strong>{event.message}</strong></div></div>)}</div></section>)}</div><aside className="main-column"><section className="panel content-pad"><h2>Run a fresh evaluation</h2><p className="inline-note">The demo repeats its current market snapshot. Scenarios introduce a new deterministic market event.</p><button className="button secondary section-gap full" disabled={busy} onClick={() => void mutate({ command:'scan' })}><ScanLine size={16}/>Scan portfolio now</button></section><section className="demo-panel"><div className="eyebrow">DEMO LAB</div><h3>Change the market.</h3><p className="inline-note">Each scenario starts a fresh simulated portfolio. Earlier receipts remain in your history.</p><ScenarioControl/></section><section className="panel content-pad"><h2>Monitoring scope</h2><p className="inline-note">This MVP watches while the workspace tab is open and visible. Closing the tab stops scheduled scans. It does not promise unattended, always-on protection.</p></section></aside></div></>;
+  const { state, busy, mutate } = useWorkspace();
+  if (!state) return null;
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow">OBSERVE → ANALYZE → DECIDE → ACT → VERIFY → RECEIPT</div>
+          <h1>Wardyn Watch.</h1>
+          <p>A visible record of your agent at work.</p>
+        </div>
+        <button
+          className="button primary"
+          disabled={busy}
+          onClick={() => void mutate({ command: 'monitor', enabled: !state.monitoring })}
+        >
+          {state.monitoring ? <Pause size={16} /> : <Play size={16} />}
+          {state.monitoring ? 'Pause Watch' : 'Start Watch'}
+        </button>
+      </div>
+      <div className="watch-strip">
+        <Activity size={16} />
+        <span>
+          {state.monitoring
+            ? 'Watching every 30 seconds while this tab is visible.'
+            : 'Monitoring is paused. Start Watch or run a manual scan.'}
+        </span>
+      </div>
+      <div className="two-column">
+        <div className="main-column">
+          {state.runs.slice(0, 15).map((run) => (
+            <section className="panel" key={run.id}>
+              <div className="panel-heading">
+                <div>
+                  <h2>
+                    {run.events[0]?.stage === 'VERIFY' ? 'Action verification' : 'Portfolio scan'}{' '}
+                    <span className="muted">{time(run.startedAt)}</span>
+                  </h2>
+                  <p>
+                    {new Date(run.startedAt).toLocaleDateString('en-GB')} · Run {run.id.slice(0, 8)}
+                  </p>
+                </div>
+                <span className="status">{run.risk.level} RISK</span>
+              </div>
+              <div className="timeline">
+                {run.events.map((event, i) => (
+                  <div className="timeline-event" key={i}>
+                    <time>{time(event.timestamp)}</time>
+                    <div>
+                      <small>{event.stage}</small>
+                      <strong>{event.message}</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+        <aside className="main-column">
+          <section className="panel content-pad">
+            <h2>Run a fresh evaluation</h2>
+            <p className="inline-note">
+              The demo repeats its current market snapshot. Scenarios introduce a new deterministic
+              market event.
+            </p>
+            <button
+              className="button secondary section-gap full"
+              disabled={busy}
+              onClick={() => void mutate({ command: 'scan' })}
+            >
+              <ScanLine size={16} />
+              Scan portfolio now
+            </button>
+          </section>
+          <section className="demo-panel">
+            <div className="eyebrow">DEMO LAB</div>
+            <h3>Change the market.</h3>
+            <p className="inline-note">
+              Each scenario starts a fresh simulated portfolio. Earlier receipts remain in your
+              history.
+            </p>
+            <ScenarioControl />
+          </section>
+          <section className="panel content-pad">
+            <h2>Monitoring scope</h2>
+            <p className="inline-note">
+              This MVP watches while the workspace tab is open and visible. Closing the tab stops
+              scheduled scans. It does not promise unattended, always-on protection.
+            </p>
+          </section>
+        </aside>
+      </div>
+    </>
+  );
 }

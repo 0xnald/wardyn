@@ -4,16 +4,235 @@ import { Check, ShieldCheck, Sparkles } from 'lucide-react';
 import { useWorkspace } from './workspace-context';
 import { policySchema, type WardynPolicy } from '../domain/policy';
 import type { PolicyDraft } from '../lib/ai/policy';
-const mandate = "I'm a moderate-risk investor. Keep at least 15% in stablecoins, never let one asset exceed 30% of my portfolio, and take profits gradually instead of fully exiting winners.";
+const mandate =
+  "I'm a moderate-risk investor. Keep at least 15% in stablecoins, never let one asset exceed 30% of my portfolio, and take profits gradually instead of fully exiting winners.";
 export function PolicyEditor() {
   const { state, busy, mutate, request } = useWorkspace();
-  const [text, setText] = useState(mandate); const [policy, setPolicy] = useState<WardynPolicy>(state!.policy);
-  const [draft, setDraft] = useState<PolicyDraft | null>(null); const [generating, setGenerating] = useState(false); const [error, setError] = useState<string | null>(null);
-  const numeric = (key: keyof WardynPolicy, value: string) => setPolicy(p => ({ ...p, [key]: Number(value) }));
-  async function generate() { setGenerating(true); setError(null); try { const d = await request<PolicyDraft>({ command: 'interpret', text }); setDraft(d); setPolicy(d.policy); } catch (e) { setError(e instanceof Error ? e.message : 'Could not interpret policy.'); } finally { setGenerating(false); } }
-  async function activate() { const parsed = policySchema.safeParse(policy); if (!parsed.success) { setError(parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(' · ')); return; } setError(null); await mutate({ command: 'policy', policy: parsed.data }); }
+  const [text, setText] = useState(mandate);
+  const [policy, setPolicy] = useState<WardynPolicy>(state!.policy);
+  const [draft, setDraft] = useState<PolicyDraft | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const numeric = (key: keyof WardynPolicy, value: string) =>
+    setPolicy((p) => ({ ...p, [key]: Number(value) }));
+  async function generate() {
+    setGenerating(true);
+    setError(null);
+    try {
+      const d = await request<PolicyDraft>({ command: 'interpret', text });
+      setDraft(d);
+      setPolicy(d.policy);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not interpret policy.');
+    } finally {
+      setGenerating(false);
+    }
+  }
+  async function activate() {
+    const parsed = policySchema.safeParse(policy);
+    if (!parsed.success) {
+      setError(parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(' · '));
+      return;
+    }
+    setError(null);
+    await mutate({ command: 'policy', policy: parsed.data });
+  }
   const active = state?.policyConfirmed && JSON.stringify(state.policy) === JSON.stringify(policy);
-  return <><div className="page-heading"><div><div className="eyebrow">YOUR MANDATE</div><h1>Set the rules. Keep the control.</h1><p>Tell Wardyn how you want your existing positions managed.</p></div><span className="status">APPROVAL REQUIRED</span></div><div className="two-column"><div><section className="panel content-pad"><label className="label" htmlFor="mandate">How do you want Wardyn to manage your portfolio?</label><textarea id="mandate" className="mandate-input" maxLength={2000} value={text} onChange={e => setText(e.target.value)} placeholder="Tell Wardyn how you want your portfolio managed…"/><div className="form-actions"><p>Interpretation creates a draft. You activate it.</p><button className="button primary" disabled={generating || busy || text.trim().length < 10} onClick={() => void generate()}><Sparkles size={16}/>{generating ? 'Interpreting…' : 'Interpret my policy'}</button></div></section>{error && <div role="alert" className="error-banner section-gap">{error}</div>}{draft && <div className="interpretation"><span className="eyebrow">{draft.source === 'AI' ? 'AI-INTERPRETED DRAFT' : 'RULE-BASED DRAFT · AI NOT USED'}</span><p>{draft.explanation}</p><ul>{draft.assumptions.map(a => <li key={a}>{a}</li>)}</ul></div>}<section className="panel section-gap"><div className="panel-heading"><div><h2>Your management policy</h2><p>Review the numbers before making them active.</p></div><ShieldCheck size={21}/></div><div className="content-pad"><div className="form-grid"><label>Risk profile<select value={policy.riskProfile} onChange={e => setPolicy({ ...policy, riskProfile: e.target.value as WardynPolicy['riskProfile'] })}><option value="conservative">Conservative</option><option value="moderate">Moderate</option><option value="growth">Growth</option></select></label><label>Profit strategy<select value={policy.profitStrategy} onChange={e => setPolicy({ ...policy, profitStrategy: e.target.value as WardynPolicy['profitStrategy'] })}><option value="scale_out">Scale out gradually</option><option value="hold">Hold winners</option></select></label>{([
-    ['maxAssetAllocationPct', 'Maximum asset allocation (%)', 10, 80], ['minStableReservePct','Minimum stable reserve (%)',0,80], ['maxPositionDrawdownPct','Maximum peak drawdown (%)',5,60], ['profitThresholdPct','Profit-taking threshold (%)',5,500], ['profitScalePct','Profit scale-out size (%)',1,25], ['maxActionPct','Maximum position sold per action (%)',1,100], ['cooldownMinutes','Intervention cooldown (minutes)',1,1440],
-  ] as const).map(([key,label,min,max]) => <label key={key}>{label}<input type="number" min={min} max={max} step="1" value={policy[key]} onChange={e => numeric(key,e.target.value)}/></label>)}<label>Execution mode<input value="Approval required" readOnly/></label><label className="checkbox-label"><input type="checkbox" checked={policy.lossProtectionEnabled} onChange={e => setPolicy({ ...policy, lossProtectionEnabled:e.target.checked })}/>Enable loss protection</label><label className="checkbox-label"><input type="checkbox" checked={policy.overtradingProtection} onChange={e => setPolicy({ ...policy, overtradingProtection:e.target.checked })}/>Enable overtrading protection</label></div><div className="form-actions section-gap"><p>{active ? 'This policy is active in your workspace.' : 'Activating invalidates old proposals and runs a fresh scan.'}</p><button disabled={busy || generating || !!active} className="button primary" onClick={() => void activate()}>{active ? <Check size={16}/> : <ShieldCheck size={16}/>}{active ? 'Policy active' : 'Activate policy'}</button></div></div></section></div><aside className="panel content-pad"><div className="eyebrow">HOW YOUR RULES WORK</div><div className="info-list"><div><h3>Language sets the intent.</h3><p>AI can translate your mandate into a validated draft. Without an AI key, a limited local parser extracts explicit percentages and labels the result.</p></div><div><h3>Numbers set the boundaries.</h3><p>Deterministic rules evaluate each position. The model cannot override concentration, drawdown, or action limits.</p></div><div><h3>Approval stays with you.</h3><p>A proposed action is never an executed action. Review the evidence and expected effect first.</p></div><div><h3>A profile is a description.</h3><p>The risk-profile label does not secretly change your thresholds. The controls on this page are the actual rules.</p></div></div></aside></div></>;
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow">YOUR MANDATE</div>
+          <h1>Set the rules. Keep the control.</h1>
+          <p>Tell Wardyn how you want your existing positions managed.</p>
+        </div>
+        <span className="status">APPROVAL REQUIRED</span>
+      </div>
+      <div className="two-column">
+        <div>
+          <section className="panel content-pad">
+            <label className="label" htmlFor="mandate">
+              How do you want Wardyn to manage your portfolio?
+            </label>
+            <textarea
+              id="mandate"
+              className="mandate-input"
+              maxLength={2000}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Tell Wardyn how you want your portfolio managed…"
+            />
+            <div className="form-actions">
+              <p>Interpretation creates a draft. You activate it.</p>
+              <button
+                className="button primary"
+                disabled={generating || busy || text.trim().length < 10}
+                onClick={() => void generate()}
+              >
+                <Sparkles size={16} />
+                {generating ? 'Interpreting…' : 'Interpret my policy'}
+              </button>
+            </div>
+          </section>
+          {error && (
+            <div role="alert" className="error-banner section-gap">
+              {error}
+            </div>
+          )}
+          {draft && (
+            <div className="interpretation">
+              <span className="eyebrow">
+                {draft.source === 'AI' ? 'AI-INTERPRETED DRAFT' : 'RULE-BASED DRAFT · AI NOT USED'}
+              </span>
+              <p>{draft.explanation}</p>
+              <ul>
+                {draft.assumptions.map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <section className="panel section-gap">
+            <div className="panel-heading">
+              <div>
+                <h2>Your management policy</h2>
+                <p>Review the numbers before making them active.</p>
+              </div>
+              <ShieldCheck size={21} />
+            </div>
+            <div className="content-pad">
+              <div className="form-grid">
+                <label>
+                  Risk profile
+                  <select
+                    value={policy.riskProfile}
+                    onChange={(e) =>
+                      setPolicy({
+                        ...policy,
+                        riskProfile: e.target.value as WardynPolicy['riskProfile'],
+                      })
+                    }
+                  >
+                    <option value="conservative">Conservative</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="growth">Growth</option>
+                  </select>
+                </label>
+                <label>
+                  Profit strategy
+                  <select
+                    value={policy.profitStrategy}
+                    onChange={(e) =>
+                      setPolicy({
+                        ...policy,
+                        profitStrategy: e.target.value as WardynPolicy['profitStrategy'],
+                      })
+                    }
+                  >
+                    <option value="scale_out">Scale out gradually</option>
+                    <option value="hold">Hold winners</option>
+                  </select>
+                </label>
+                {(
+                  [
+                    ['maxAssetAllocationPct', 'Maximum asset allocation (%)', 10, 80],
+                    ['minStableReservePct', 'Minimum stable reserve (%)', 0, 80],
+                    ['maxPositionDrawdownPct', 'Maximum peak drawdown (%)', 5, 60],
+                    ['profitThresholdPct', 'Profit-taking threshold (%)', 5, 500],
+                    ['profitScalePct', 'Profit scale-out size (%)', 1, 25],
+                    ['maxActionPct', 'Maximum position sold per action (%)', 1, 100],
+                    ['cooldownMinutes', 'Intervention cooldown (minutes)', 1, 1440],
+                  ] as const
+                ).map(([key, label, min, max]) => (
+                  <label key={key}>
+                    {label}
+                    <input
+                      type="number"
+                      min={min}
+                      max={max}
+                      step="1"
+                      value={policy[key]}
+                      onChange={(e) => numeric(key, e.target.value)}
+                    />
+                  </label>
+                ))}
+                <label>
+                  Execution mode
+                  <input value="Approval required" readOnly />
+                </label>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={policy.lossProtectionEnabled}
+                    onChange={(e) =>
+                      setPolicy({ ...policy, lossProtectionEnabled: e.target.checked })
+                    }
+                  />
+                  Enable loss protection
+                </label>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={policy.overtradingProtection}
+                    onChange={(e) =>
+                      setPolicy({ ...policy, overtradingProtection: e.target.checked })
+                    }
+                  />
+                  Enable overtrading protection
+                </label>
+              </div>
+              <div className="form-actions section-gap">
+                <p>
+                  {active
+                    ? 'This policy is active in your workspace.'
+                    : 'Activating invalidates old proposals and runs a fresh scan.'}
+                </p>
+                <button
+                  disabled={busy || generating || !!active}
+                  className="button primary"
+                  onClick={() => void activate()}
+                >
+                  {active ? <Check size={16} /> : <ShieldCheck size={16} />}
+                  {active ? 'Policy active' : 'Activate policy'}
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+        <aside className="panel content-pad">
+          <div className="eyebrow">HOW YOUR RULES WORK</div>
+          <div className="info-list">
+            <div>
+              <h3>Language sets the intent.</h3>
+              <p>
+                AI can translate your mandate into a validated draft. Without an AI key, a limited
+                local parser extracts explicit percentages and labels the result.
+              </p>
+            </div>
+            <div>
+              <h3>Numbers set the boundaries.</h3>
+              <p>
+                Deterministic rules evaluate each position. The model cannot override concentration,
+                drawdown, or action limits.
+              </p>
+            </div>
+            <div>
+              <h3>Approval stays with you.</h3>
+              <p>
+                A proposed action is never an executed action. Review the evidence and expected
+                effect first.
+              </p>
+            </div>
+            <div>
+              <h3>A profile is a description.</h3>
+              <p>
+                The risk-profile label does not secretly change your thresholds. The controls on
+                this page are the actual rules.
+              </p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </>
+  );
 }
