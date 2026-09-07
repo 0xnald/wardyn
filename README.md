@@ -2,32 +2,25 @@
 
 **Your positions never go unwatched.**
 
-Built for Binance Agent OS Mini Hackathon — Track A.
+Wardyn is a policy-based position manager for existing cryptocurrency spot holdings. It monitors portfolio allocation, stablecoin reserves, profit targets, and drawdowns, then recommends **HOLD**, **REDUCE**, **EXIT**, or **REBALANCE** actions with an explanation of the rules behind each decision.
 
-Most trading agents help you enter trades. Wardyn manages what happens after you enter.
+You define the policy and approve interventions. Wardyn calculates the proposed adjustment and preserves the evidence in a downloadable receipt. It manages positions you already own; it does not discover tokens or select trade entries.
 
-Wardyn watches existing positions, evaluates a user-confirmed policy, and produces explainable **HOLD**, **REDUCE**, **EXIT**, or **REBALANCE** decisions. Every intervention has evidence, explicit approval, verification, and a durable decision receipt.
+Wardyn starts with simulated funds. Binance account access is read-only, and all action execution is limited to the demo portfolio.
 
-## For judges
+![Wardyn dashboard showing a simulated SOL concentration decision](docs/screenshots/dashboard.png)
 
-**Track A · Post-entry portfolio management · Working local demo with simulated funds.**
+## Features
 
-Wardyn is designed for spot holders who want their existing positions managed according to a reviewed mandate. Its central demonstration is a complete, inspectable decision cycle: a concentration breach leads to a sized proposal, user approval, portfolio recalculation, and a receipt showing the result.
+- **Portfolio overview:** balances, allocations, stable reserves, available unrealized profit and loss, and a transparent risk breakdown.
+- **Personal policies:** describe your preferences in natural language, review the resulting controls, and activate them explicitly.
+- **Position decisions:** evaluate concentration, profit-taking, tracked-peak drawdown, reserve requirements, action-size limits, and cooldowns.
+- **Wardyn Watch:** run manual scans or monitor every 30 seconds while the workspace tab is open and visible.
+- **Approval workflow:** review proposed sales before confirming a simulation.
+- **Decision receipts:** inspect the original portfolio, triggering rules, proposed trade, resulting portfolio, and verification status; export receipts as JSON.
+- **Binance data:** read supported account balances through the official Binance CLI or view public market data separately.
 
-| Review question                       | Where to look                                                                                                   |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Can I run it without credentials?     | [Local setup and walkthrough](#try-the-demo)                                                                    |
-| What should each scenario do?         | [Expected demo results](#expected-demo-results)                                                                 |
-| Where does AI participate?            | [Policy interpretation and fallback](#why-ai)                                                                   |
-| What uses Binance infrastructure?     | [Integration status](#binance-agent-os-integration) and [official-source evidence](docs/binance-integration.md) |
-| What was actually tested?             | [Verification record](docs/verification.md): 31 tests, production build, desktop and mobile browser flows       |
-| How can I inspect the implementation? | [Architecture](#how-it-works) and [source map](#project-layout)                                                 |
-
-**Submission assets:** repository, screenshots, and a [90-second recording script](docs/demo-script.md) are included. A recorded demo URL and a public hosted app URL have not yet been added. The localhost link below requires running the project on your computer.
-
-![Wardyn dashboard with a simulated SOL concentration decision](docs/screenshots/dashboard.png)
-
-## Try the demo
+## Getting started
 
 Requires **Node.js 22.13+** and **pnpm 11**.
 
@@ -38,169 +31,173 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open [Wardyn locally](http://127.0.0.1:3000). No API keys or funds are required.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). No credentials or funds are required for demo mode.
 
-1. Launch Wardyn and open **Your policy**.
-2. Keep the prefilled mandate, interpret it, inspect every field, and activate the draft. For the results below, retain the default policy values listed in the next section.
-3. Run **SOL concentration** from Overview or Wardyn Watch.
-4. Open **Review decision** and inspect the evidence.
-5. Approve and confirm the simulation.
-6. Inspect the receipt: SOL moves from **34% to 29%**, stable reserve from **13% to 18%**.
-7. Try **Market pullback** for HOLD, **Severe deterioration** for EXIT, and **Reserve shortfall** for REBALANCE.
-
-See the [90-second demo script](docs/demo-script.md).
-
-### Expected demo results
-
-Use a fresh browser session and the default policy: maximum allocation **30%**, minimum stable reserve **15%**, profit threshold **50%** with **10%** scale-out, peak drawdown limit **18%**, cooldown **60 minutes**, and maximum action size **100%**. Loss and overtrading protection are enabled. The maximum action size is a ceiling; the engine computes the proposed size.
-
-| Scenario             | Expected decision | What to verify                                                                                         |
-| -------------------- | ----------------- | ------------------------------------------------------------------------------------------------------ |
-| Quiet market         | HOLD              | No trade proposed when the management rules are satisfied.                                             |
-| SOL concentration    | REDUCE SOL        | Approve a 2.5 SOL simulated sale at 200 USDT: SOL allocation moves 34% → 29%, reserve 13% → 18%.       |
-| Market pullback      | HOLD              | Broad negative movement alone does not trigger a sale; tracked drawdowns stay below 18%.               |
-| Severe deterioration | EXIT SOL          | The 36% tracked-peak drawdown exceeds the severe-loss threshold; default settings propose closing SOL. |
-| Reserve shortfall    | REBALANCE         | A simulated sale restores the reserve from 10% to 15%.                                                 |
-
-Scenario selection resets the synthetic portfolio while retaining receipt history. A new scan uses the current scenario prices. Complete approvals within two minutes; after expiry, scan again for a fresh proposal. In **Receipts**, download the JSON to inspect the original portfolio, policy triggers, proposed trade, resulting portfolio, and verification status.
-
-## Problem and solution
-
-Position management requires repeated attention: allocation checks, liquidity reserves, profit-taking, loss protection, and remembering the original plan. Wardyn turns those responsibilities into a visible policy workflow instead of an open-ended trading chat.
-
-The MVP includes:
-
-- A portfolio dashboard and per-position evidence views.
-- Natural-language policy drafts with editable controls and explicit activation.
-- Concentration, stable reserve, profit scaling, drawdown, action-size, and cooldown checks.
-- A transparent risk score with a factor-by-factor breakdown.
-- An observable monitoring loop with scan history.
-- Approval-first simulated sales, portfolio recalculation, and verification.
-- Persistent, downloadable decision receipts containing original and resulting states.
-- Five deterministic scenarios evaluated by the same domain engines as real data.
-- Read-only Binance Skills Hub CLI and public market-data adapters.
-
-## How it works
-
-The application uses Next.js 16, React 19, TypeScript, Zod, decimal.js, and Vitest. The Node server owns integrations and persistence; the browser displays state and requests explicit actions. Dependency versions are pinned in `package.json` and `pnpm-lock.yaml`.
-
-**Observe → Analyze → Decide → Act → Verify → Receipt**
-
-```mermaid
-flowchart LR
-    Demo[Demo provider] --> Observe
-    CLI[Official Binance Skills Hub CLI] --> Observe
-    Observe --> Portfolio[Decimal portfolio calculations]
-    Mandate[User mandate] --> AI[AI policy interpreter]
-    AI --> Review[Editable draft and user confirmation]
-    Review --> Policy[Validated policy]
-    Portfolio --> Rules[Deterministic policy and risk engine]
-    Policy --> Rules
-    Rules --> Decision[HOLD / REDUCE / EXIT / REBALANCE]
-    Decision --> Approval[Explicit approval]
-    Approval --> Sim[Demo execution only]
-    Sim --> Verify[Recalculate and verify]
-    Decision --> Receipts[Decision receipts]
-    Verify --> Receipts
-    Receipts --> Store[Atomic session persistence]
-```
-
-## Why AI
-
-Portfolio intent is naturally expressed in language. Wardyn optionally calls the Anthropic Messages API with a structured tool schema to translate a mandate into a bounded policy draft. Zod validates the entire response. The user must confirm the draft before it becomes active.
-
-Without configured AI credentials, the app uses a **clearly labelled, limited rule-based parser**. Invalid responses and service failures also fall back to that parser. The UI never presents this fallback as an LLM response. Any unstated or unsupported intent requires reviewing the displayed defaults.
-
-The LLM does not choose order quantities, override risk limits, or execute trades. Decision explanations are derived from deterministic evidence.
-
-## Binance Agent OS integration
-
-The implemented Agent OS route uses the **official Binance Skills Hub CLI**:
-
-| Capability                  | Implementation                                      | Status                                                        |
-| --------------------------- | --------------------------------------------------- | ------------------------------------------------------------- |
-| Spot balances               | `binance-cli spot get-account`                      | Adapter implemented; requires local CLI and read permission   |
-| Market evidence             | `spot ticker24hr` and `spot klines`                 | Adapter implemented; schema validated                         |
-| Public market preview       | Official `/api/v3/ticker/24hr` and `/api/v3/klines` | Read-only preview, separate from portfolio                    |
-| MCP discovery               | Official MCP SDK against documented endpoint        | Utility included; discovery failed in development environment |
-| MCP OAuth / trading         | None                                                | Not implemented                                               |
-| Live order execution        | None                                                | Not implemented                                               |
-| Approval and execution demo | Internal simulation                                 | Complete; no funds move                                       |
-
-Authenticated account reads have **not been verified end to end** in this build environment. The account adapter fails clearly if credentials, the executable, or supported data are unavailable. It does not silently substitute demo balances.
-
-Read the [integration verification and limitations](docs/binance-integration.md), [official Skills Hub command reference](https://github.com/binance/binance-skills-hub/blob/main/skills/binance/binance/references/spot.md), and [official Binance MCP documentation](https://developers.binance.com/en/docs/agent-native/mcp-server/agentic).
-
-## Configuration
-
-Copy `.env.example` to `.env.local` only when enabling optional integrations. Keep all values server-side.
-
-| Variable                      | Purpose                                                                      |
-| ----------------------------- | ---------------------------------------------------------------------------- |
-| `WARDYN_AI_API_KEY`           | Optional Anthropic API key for natural-language policy interpretation        |
-| `WARDYN_AI_MODEL`             | Model ID available to your Anthropic account; both AI variables are required |
-| `WARDYN_BINANCE_READ_ENABLED` | Set to `true` after installing and authorizing the official CLI              |
-| `WARDYN_BINANCE_CLI_PATH`     | Optional path to the CLI executable; otherwise uses `binance-cli` on PATH    |
-| `BINANCE_API_KEY`             | Official CLI account credential; a configured CLI profile is also supported  |
-| `BINANCE_SECRET_KEY`          | Official CLI secret; never expose it to the browser                          |
-| `BINANCE_API_ENV`             | Official CLI environment: `prod`, `demo`, or `testnet`; select deliberately  |
-
-See [Anthropic tool-use documentation](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview) and [Binance CLI setup](https://github.com/binance/binance-cli). No keys are needed for demo mode.
-
-## Verification
-
-The [September 7 verification record](docs/verification.md) documents **31 passing tests across 14 files**, successful TypeScript and ESLint checks, a production build, and browser validation of both development and production flows. Screenshots show simulated data; they are not evidence of an authenticated Binance account connection.
+To run the production server:
 
 ```sh
-pnpm typecheck
-pnpm lint
-pnpm test
 pnpm build
 pnpm start
 ```
 
-For a fresh checkout, run `pnpm build` before `pnpm typecheck` so Next.js generates its route declarations. For production use, stop the development server before `pnpm start` if both use port 3000.
+Both servers use port 3000 by default, so stop the development server before starting the production server.
 
-Tests exercise the real financial calculations and decision engines, including stale data, unknown cost basis, concentration, reserve gaps, risk, the four decisions, duplicate plans, action-size limits, approval expiry, receipt state preservation, concurrent persistence, malformed AI output, adapter schemas, and browser-origin validation.
+## Using Wardyn
 
-## Persistence and monitoring
+1. Open **Your policy** and describe how you want your positions managed.
+2. Interpret the description, review all policy fields, and select **Activate policy**.
+3. Open **Overview** to inspect positions or run a scenario.
+4. Select **Review decision** when an intervention is proposed.
+5. Review the evidence and expected effect, then approve the simulation or reject it.
+6. Open **Receipts** to inspect the outcome or download its JSON record.
 
-An opaque, HTTP-only, same-site session cookie isolates each browser workspace. State is stored in `.wardyn/` using serialized updates and atomic file replacement. Keep this folder on persistent storage. It is excluded from Git.
+A pending proposal prevents overlapping interventions. Proposals expire after two minutes; scan again to obtain a fresh proposal. Changing the policy invalidates existing proposals.
 
-This is a **single-process Node MVP**, not a distributed service. The UI retains up to 200 receipts and 100 monitoring runs per session. Export important receipts before the retention limit is reached.
+### Policy controls
 
-Wardyn Watch runs a scan every 30 seconds **while the workspace tab is open and visible**. Closing the tab stops scheduled monitoring. The demo keeps its current synthetic prices until a new scenario is selected. This is not an unattended protection service.
+| Control                  | Default    | Purpose                                                              |
+| ------------------------ | ---------- | -------------------------------------------------------------------- |
+| Maximum asset allocation | 30%        | Limit exposure to one non-stable asset.                              |
+| Minimum stable reserve   | 15%        | Maintain a USDT portfolio buffer.                                    |
+| Profit threshold         | 50%        | Identify positions eligible for gradual profit-taking.               |
+| Profit scale-out         | 10%        | Set the portion to sell when the profit threshold is reached.        |
+| Peak drawdown limit      | 18%        | Trigger loss protection using an available tracked peak.             |
+| Cooldown                 | 60 minutes | Prevent repeated interventions after a simulated or rejected action. |
+| Maximum action size      | 100%       | Cap the portion of a position that one action can sell.              |
 
-## Safety and practical limits
+Loss protection and overtrading protection are enabled by default. The maximum action size is a ceiling, not a target. Risk profile labels describe the mandate; the numeric controls determine the rules.
 
-- Demo mode is the default; simulation always requires explicit approval.
-- No live order endpoint or unrestricted command execution is exposed.
-- All monetary calculations use `decimal.js`; monetary values cross boundaries as decimal strings.
-- Quotes older than two minutes or unexpectedly in the future fail valuation.
-- Proposals expire after two minutes and cannot be executed twice.
-- Pending plans block overlapping interventions. Policy changes invalidate existing proposals.
-- Risk and decision confidence are rule-based heuristics, not probabilities of return.
-- Drawdown is measured from an available tracked peak; unknown peaks and cost basis remain unknown.
-- Supported assets are BTC, BNB, SOL, and USDT. Nonzero unsupported live balances fail the account import rather than understate portfolio exposure.
-- USDT is the valuation unit, not a guaranteed US dollar peg. Simulations exclude fees, spread, and slippage.
-- Live account access is restricted to loopback requests. Run this locally for private account data. Do not expose a credential-enabled installation as a public multi-user service.
-- The app has no withdrawal, transfer, futures, token-discovery, or autonomous live-trading capability.
+### Decisions
 
-## Project layout
+| Decision  | Meaning                                                                                                                                                                             |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HOLD      | Retain the position when no intervention is required or an execution guard prevents another proposal. Missing history is disclosed when some protection checks cannot be evaluated. |
+| REDUCE    | Sell part of a position to address concentration, take gradual profits, or apply loss protection.                                                                                   |
+| EXIT      | Close a position after severe deterioration, subject to the maximum action-size limit.                                                                                              |
+| REBALANCE | Reduce exposure to restore the stablecoin reserve.                                                                                                                                  |
+
+Risk scores and decision confidence reflect deterministic rules, not probabilities of profit. Unknown entry prices and historical peaks remain unknown rather than being estimated silently.
+
+### Demo scenarios
+
+The demo contains synthetic BTC, BNB, SOL, and USDT holdings valued at 10,000 USDT. Scenarios use the same portfolio and policy engines as account data.
+
+| Scenario             | Behavior under the default policy                                                                                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Quiet market         | HOLD while positions remain within their rules.                                                                        |
+| SOL concentration    | Propose a 2.5 SOL sale at 200 USDT; after approval, SOL allocation moves from 34% to 29% and reserves from 13% to 18%. |
+| Market pullback      | HOLD during a broad decline with drawdowns below the loss threshold.                                                   |
+| Severe deterioration | Propose EXIT for SOL after a 36% tracked-peak drawdown.                                                                |
+| Reserve shortfall    | Propose REBALANCE to raise stable reserves from 10% to 15%.                                                            |
+
+Selecting a scenario resets the synthetic portfolio and retains receipt history. Prices remain unchanged until another scenario is selected. Simulations exclude fees, spread, and slippage.
+
+## Natural-language policies
+
+With AI credentials configured, Wardyn uses the Anthropic Messages API and a structured schema to translate a description into an editable policy. Zod validates the response, and the policy becomes active only after your confirmation.
+
+Without credentials, or when the AI service fails, a limited rule-based parser produces a clearly labelled draft. Review every field, including defaults for preferences that were not specified or could not be interpreted.
+
+The language model interprets policy intent. Portfolio calculations, trade sizing, rule enforcement, and decision explanations are handled by the deterministic engine.
+
+## Binance integration
+
+Wardyn's account adapter uses the official Binance CLI associated with Binance Skills Hub. It runs fixed commands without a shell and validates responses before calculating portfolio values.
+
+| Capability             | Interface                                  | Availability                                                      |
+| ---------------------- | ------------------------------------------ | ----------------------------------------------------------------- |
+| Spot balances          | `binance-cli spot get-account`             | Requires an installed CLI and authorized read access.             |
+| Market evidence        | `spot ticker24hr` and `spot klines`        | Used by the account adapter for supported assets.                 |
+| Public market preview  | `/api/v3/ticker/24hr` and `/api/v3/klines` | Separate read-only preview; does not connect an account.          |
+| MCP discovery          | `node scripts/discover-binance.mjs`        | Lists tool schemas when the documented MCP endpoint is reachable. |
+| MCP account connection | —                                          | Not supported.                                                    |
+| Live order execution   | —                                          | Not supported.                                                    |
+
+The account adapter is experimental and has not been validated with an authenticated account. It reports missing credentials, unavailable commands, and unsupported data as errors; it does not replace failed account reads with demo balances.
+
+Supported assets are **BTC, BNB, SOL, and USDT**. Nonzero unsupported account balances cause the import to fail to avoid understating portfolio exposure. Valuation includes free and locked balances. Account balances do not provide entry prices or tracked position peaks, so related protection checks may be unavailable.
+
+See the [Binance CLI setup](https://github.com/binance/binance-cli), [Skills Hub spot command reference](https://github.com/binance/binance-skills-hub/blob/main/skills/binance/binance/references/spot.md), and [Binance MCP documentation](https://developers.binance.com/en/docs/agent-native/mcp-server/agentic).
+
+## Configuration
+
+Copy `.env.example` to `.env.local` to enable optional integrations. Restart the server after changing configuration. Keep credentials server-side and out of version control.
+
+| Variable                      | Purpose                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------- |
+| `WARDYN_AI_API_KEY`           | Anthropic API key for policy interpretation.                                  |
+| `WARDYN_AI_MODEL`             | Model ID available to your Anthropic account; both AI variables are required. |
+| `WARDYN_BINANCE_READ_ENABLED` | Set to `true` after installing and authorizing the official CLI.              |
+| `WARDYN_BINANCE_CLI_PATH`     | Optional CLI executable path; otherwise uses `binance-cli` on PATH.           |
+| `BINANCE_API_KEY`             | CLI account credential; a configured CLI profile is also supported.           |
+| `BINANCE_SECRET_KEY`          | CLI secret.                                                                   |
+| `BINANCE_API_ENV`             | CLI environment: `prod`, `demo`, or `testnet`.                                |
+
+Enable only read permissions for account access. The account connection is restricted to loopback requests and intended for a private local installation.
+
+## Architecture
+
+Wardyn uses Next.js, React, TypeScript, Zod, and decimal.js. A Node server owns integrations, portfolio calculations, workflow state, and persistence. The browser displays the workspace and submits user actions.
+
+**Observe → Analyze → Decide → Approve → Simulate → Verify → Receipt**
+
+```mermaid
+flowchart LR
+    Demo[Demo portfolio] --> Portfolio[Portfolio calculations]
+    Binance[Binance CLI] --> Portfolio
+    Intent[Policy description] --> Draft[Validated policy draft]
+    Draft --> Confirm[User confirmation]
+    Confirm --> Policy[Active policy]
+    Portfolio --> Engine[Policy and risk engine]
+    Policy --> Engine
+    Engine --> Decisions[HOLD / REDUCE / EXIT / REBALANCE]
+    Decisions --> Receipts[Decision receipts]
+    Decisions --> Approval[User approval]
+    Approval --> Simulation[Demo simulation]
+    Simulation --> Verify[Recalculate and verify]
+    Verify --> Receipts
+    Receipts --> Storage[Session storage]
+```
+
+Monetary calculations use decimal arithmetic, and values cross application boundaries as decimal strings. Quotes older than two minutes or unexpectedly in the future are rejected. Simulated actions validate the original portfolio and cannot be executed twice.
+
+### Storage and monitoring
+
+An opaque HTTP-only, same-site session cookie identifies each browser workspace. State is stored in `.wardyn/` through serialized updates and atomic file replacement. Use persistent storage to retain sessions across server restarts.
+
+Wardyn runs as a single Node process. Each session retains up to 200 receipts and 100 monitoring runs. Export receipts you want to keep beyond that limit.
+
+Watch scans every 30 seconds while the tab is open and visible. Closing or hiding the tab stops scheduled scans. It is not an unattended monitoring service.
+
+### Source layout
 
 ```text
 src/domain/       Portfolio, policy, risk, decisions, simulation, receipts
-src/lib/binance/  Official CLI and public market adapters
-src/lib/ai/       Structured policy interpretation and labelled fallback
-src/features/    Deterministic demo scenarios
-src/server/      Monitoring, persistence, workflow service, request security
-src/components/  Product interface and browser workspace state
-src/app/         Next.js pages and API route
-docs/            Integration evidence and demonstration instructions
+src/lib/binance/  CLI and public market adapters
+src/lib/ai/       Policy interpretation and rule-based fallback
+src/features/    Demo scenarios
+src/server/      Monitoring, persistence, workflow, request security
+src/components/  Interface and browser workspace state
+src/app/         Pages and API route
 ```
 
-## Hackathon
+## Development
 
-**Built for Binance Agent OS Mini Hackathon — Track A.**
+```sh
+pnpm build
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm format:check
+```
 
-The core demo works without credentials. Optional live integrations must be described according to their actual verification status. This project makes no claim of prize eligibility or guaranteed financial outcomes.
+Run the initial build to generate Next.js route declarations before type-checking a fresh checkout. Tests cover portfolio arithmetic, policy decisions, trade limits, approval expiry, persistence, response validation, and request-origin checks.
+
+## Limitations
+
+- Action execution is simulated; Wardyn does not place exchange orders.
+- Live account access supports only the listed spot assets and requires a local CLI installation.
+- Missing entry prices or tracked peaks limit profit and drawdown evaluation.
+- USDT is the valuation unit; displayed values do not assume a guaranteed US dollar peg.
+- The application is intended for a private, single-process installation with persistent storage, not a public multi-user service with shared credentials.
+- Withdrawals, transfers, futures, token discovery, and autonomous live trading are outside the application's scope.
