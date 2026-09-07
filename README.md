@@ -8,9 +8,28 @@ Most trading agents help you enter trades. Wardyn manages what happens after you
 
 Wardyn watches existing positions, evaluates a user-confirmed policy, and produces explainable **HOLD**, **REDUCE**, **EXIT**, or **REBALANCE** decisions. Every intervention has evidence, explicit approval, verification, and a durable decision receipt.
 
+## For judges
+
+**Track A · Post-entry portfolio management · Working local demo with simulated funds.**
+
+Wardyn is designed for spot holders who want their existing positions managed according to a reviewed mandate. Its central demonstration is a complete, inspectable decision cycle: a concentration breach leads to a sized proposal, user approval, portfolio recalculation, and a receipt showing the result.
+
+| Review question                       | Where to look                                                                                                   |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Can I run it without credentials?     | [Local setup and walkthrough](#try-the-demo)                                                                    |
+| What should each scenario do?         | [Expected demo results](#expected-demo-results)                                                                 |
+| Where does AI participate?            | [Policy interpretation and fallback](#why-ai)                                                                   |
+| What uses Binance infrastructure?     | [Integration status](#binance-agent-os-integration) and [official-source evidence](docs/binance-integration.md) |
+| What was actually tested?             | [Verification record](docs/verification.md): 31 tests, production build, desktop and mobile browser flows       |
+| How can I inspect the implementation? | [Architecture](#how-it-works) and [source map](#project-layout)                                                 |
+
+**Submission assets:** repository, screenshots, and a [90-second recording script](docs/demo-script.md) are included. A recorded demo URL and a public hosted app URL have not yet been added. The localhost link below requires running the project on your computer.
+
+![Wardyn dashboard with a simulated SOL concentration decision](docs/screenshots/dashboard.png)
+
 ## Try the demo
 
-Requires **Node.js 22+** and **pnpm 11**.
+Requires **Node.js 22.13+** and **pnpm 11**.
 
 ```sh
 git clone https://github.com/0xnald/wardyn.git
@@ -22,7 +41,7 @@ pnpm dev
 Open [Wardyn locally](http://127.0.0.1:3000). No API keys or funds are required.
 
 1. Launch Wardyn and open **Your policy**.
-2. Describe your mandate, interpret it, inspect every field, and activate the draft.
+2. Keep the prefilled mandate, interpret it, inspect every field, and activate the draft. For the results below, retain the default policy values listed in the next section.
 3. Run **SOL concentration** from Overview or Wardyn Watch.
 4. Open **Review decision** and inspect the evidence.
 5. Approve and confirm the simulation.
@@ -30,6 +49,20 @@ Open [Wardyn locally](http://127.0.0.1:3000). No API keys or funds are required.
 7. Try **Market pullback** for HOLD, **Severe deterioration** for EXIT, and **Reserve shortfall** for REBALANCE.
 
 See the [90-second demo script](docs/demo-script.md).
+
+### Expected demo results
+
+Use a fresh browser session and the default policy: maximum allocation **30%**, minimum stable reserve **15%**, profit threshold **50%** with **10%** scale-out, peak drawdown limit **18%**, cooldown **60 minutes**, and maximum action size **100%**. Loss and overtrading protection are enabled. The maximum action size is a ceiling; the engine computes the proposed size.
+
+| Scenario             | Expected decision | What to verify                                                                                         |
+| -------------------- | ----------------- | ------------------------------------------------------------------------------------------------------ |
+| Quiet market         | HOLD              | No trade proposed when the management rules are satisfied.                                             |
+| SOL concentration    | REDUCE SOL        | Approve a 2.5 SOL simulated sale at 200 USDT: SOL allocation moves 34% → 29%, reserve 13% → 18%.       |
+| Market pullback      | HOLD              | Broad negative movement alone does not trigger a sale; tracked drawdowns stay below 18%.               |
+| Severe deterioration | EXIT SOL          | The 36% tracked-peak drawdown exceeds the severe-loss threshold; default settings propose closing SOL. |
+| Reserve shortfall    | REBALANCE         | A simulated sale restores the reserve from 10% to 15%.                                                 |
+
+Scenario selection resets the synthetic portfolio while retaining receipt history. A new scan uses the current scenario prices. Complete approvals within two minutes; after expiry, scan again for a fresh proposal. In **Receipts**, download the JSON to inspect the original portfolio, policy triggers, proposed trade, resulting portfolio, and verification status.
 
 ## Problem and solution
 
@@ -48,6 +81,8 @@ The MVP includes:
 - Read-only Binance Skills Hub CLI and public market-data adapters.
 
 ## How it works
+
+The application uses Next.js 16, React 19, TypeScript, Zod, decimal.js, and Vitest. The Node server owns integrations and persistence; the browser displays state and requests explicit actions. Dependency versions are pinned in `package.json` and `pnpm-lock.yaml`.
 
 **Observe → Analyze → Decide → Act → Verify → Receipt**
 
@@ -114,6 +149,8 @@ See [Anthropic tool-use documentation](https://platform.claude.com/docs/en/agent
 
 ## Verification
 
+The [September 7 verification record](docs/verification.md) documents **31 passing tests across 14 files**, successful TypeScript and ESLint checks, a production build, and browser validation of both development and production flows. Screenshots show simulated data; they are not evidence of an authenticated Binance account connection.
+
 ```sh
 pnpm typecheck
 pnpm lint
@@ -121,6 +158,8 @@ pnpm test
 pnpm build
 pnpm start
 ```
+
+For a fresh checkout, run `pnpm build` before `pnpm typecheck` so Next.js generates its route declarations. For production use, stop the development server before `pnpm start` if both use port 3000.
 
 Tests exercise the real financial calculations and decision engines, including stale data, unknown cost basis, concentration, reserve gaps, risk, the four decisions, duplicate plans, action-size limits, approval expiry, receipt state preservation, concurrent persistence, malformed AI output, adapter schemas, and browser-origin validation.
 
