@@ -16,16 +16,18 @@ function invalidatePending(state: WardynState) { state.receipts.forEach(r => { i
 export async function runScenario(state: WardynState, scenario: Scenario) {
   invalidatePending(state);
   state.scenario = scenario;
+  state.scenarioStartedAt = new Date().toISOString();
   // Each scenario starts a fresh simulation; old receipts remain inspectable.
   record(state, await observe(new DemoProvider(scenario), state.policy, []));
 }
 export async function scan(state: WardynState) {
   const now = new Date();
   state.receipts.forEach(r => { if (r.status === 'PENDING' && now.getTime() - Date.parse(r.createdAt) > 120000) r.status = 'SUPERSEDED'; });
-  if (state.portfolio.source === 'binance-cli') record(state, await observe(new BinanceCliProvider(), state.policy, state.receipts, now));
+  const history = state.receipts.filter(r => !state.scenarioStartedAt || r.createdAt >= state.scenarioStartedAt);
+  if (state.portfolio.source === 'binance-cli') record(state, await observe(new BinanceCliProvider(), state.policy, history, now));
   else {
     const inputs = portfolioInputs(state.portfolio, now);
-    record(state, analyze(calculatePortfolio(inputs.balances, inputs.snapshots, 'demo', now), state.policy, state.receipts, now));
+    record(state, analyze(calculatePortfolio(inputs.balances, inputs.snapshots, 'demo', now), state.policy, history, now));
   }
 }
 export async function activatePolicy(state: WardynState, policy: WardynPolicy) {
@@ -41,7 +43,7 @@ export async function action(state: WardynState, receiptId: string, approve: boo
     // Other proposals are based on the previous portfolio and must be reevaluated.
     invalidatePending(state);
     state.runs.unshift({ id: crypto.randomUUID(), startedAt: new Date().toISOString(), events: [{ stage: 'VERIFY', message: receipt.verification!, timestamp: new Date().toISOString() }], decisions: [receipt.decision], risk: analyze(state.portfolio, state.policy, state.receipts).run.risk });
-  } else { state.receipts[index].status = 'REJECTED'; state.receipts[index].createdAt = new Date().toISOString(); }
+  } else { state.receipts[index].status = 'REJECTED'; state.receipts[index].resolvedAt = new Date().toISOString(); }
   state.revision += 1;
   await scan(state);
 }

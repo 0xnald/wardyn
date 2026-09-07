@@ -17,5 +17,5 @@ export type PolicyViolation = { asset: Asset | 'PORTFOLIO'; rule: 'concentration
 export type DecisionEvidence = { label: string; value: string };
 export type TradeIntent = { asset: Exclude<Asset, 'USDT'>; side: 'SELL'; quantity: string; estimatedProceedsUsdt: string; positionPct: number };
 export type WardynDecision = { id: string; asset: Asset | 'PORTFOLIO'; decision: DecisionKind; confidence: 'RULE_CONFIRMED' | 'INSUFFICIENT_DATA'; reasons: string[]; evidence: DecisionEvidence[]; triggers: PolicyViolation[]; trade: TradeIntent | null; approvalRequired: boolean; cooldown: boolean };
-export type WardynReceipt = { id: string; createdAt: string; decision: WardynDecision; before: Portfolio; expectedAfter: Portfolio | null; after: Portfolio | null; status: 'HOLD' | 'PENDING' | 'SIMULATED' | 'REJECTED' | 'SUPERSEDED'; verified: boolean | null; verification: string | null };
+export type WardynReceipt = { id: string; createdAt: string; resolvedAt?: string; decision: WardynDecision; before: Portfolio; expectedAfter: Portfolio | null; after: Portfolio | null; status: 'HOLD' | 'PENDING' | 'SIMULATED' | 'REJECTED' | 'SUPERSEDED'; verified: boolean | null; verification: string | null };
 export type MonitoringRun = { id: string; startedAt: string; events: { stage: string; message: string; timestamp: string }[]; decisions: WardynDecision[]; risk: RiskAssessment };

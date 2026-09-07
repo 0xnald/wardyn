@@ -8,4 +8,5 @@ test('monitor records its loop and suppresses duplicate pending receipts', async
   expect(first.receipts.some(r => r.status === 'PENDING')).toBe(true);
   const second = analyze(first.portfolio, defaultPolicy, first.receipts);
   expect(second.receipts.filter(r => r.decision.asset === 'SOL')).toHaveLength(0);
+  expect(second.run.decisions.some(d => d.trade)).toBe(false);
 });

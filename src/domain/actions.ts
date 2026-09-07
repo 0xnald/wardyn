@@ -33,5 +33,5 @@ export function approveReceipt(receipt: WardynReceipt, current: Portfolio, polic
   const unresolved = receipt.decision.triggers.filter(trigger => remaining.some(v => v.asset === trigger.asset && v.rule === trigger.rule));
   // Profit scaling is an intervention milestone; PnL percentage need not drop after selling.
   const actionable = unresolved.filter(v => v.rule !== 'profit');
-  return { ...structuredClone(receipt), status: 'SIMULATED', after, verified: actionable.length === 0, verification: actionable.length ? 'Action simulated; some triggered limits remain breached. Cooldown prevents immediate repeated execution.' : 'Action simulated and triggered allocation / reserve / loss rules resolved. Profit scaling records a partial realization, not a lower return percentage.' };
+  return { ...structuredClone(receipt), resolvedAt: now.toISOString(), status: 'SIMULATED', after, verified: actionable.length === 0, verification: actionable.length ? 'Action simulated; some triggered limits remain breached. Cooldown prevents immediate repeated execution.' : 'Action simulated and triggered allocation / reserve / loss rules resolved. Profit scaling records a partial realization, not a lower return percentage.' };
 }

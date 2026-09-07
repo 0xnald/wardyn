@@ -5,7 +5,7 @@ import { defaultPolicy, type WardynPolicy } from '../domain/policy';
 import { DemoProvider, type Scenario } from '../features/demo/provider';
 import { observe } from './monitor';
 
-export type WardynState = { version: 1; policy: WardynPolicy; policyConfirmed: boolean; portfolio: Portfolio; scenario: Scenario; receipts: WardynReceipt[]; runs: MonitoringRun[]; monitoring: boolean; revision: number };
+export type WardynState = { version: 1; policy: WardynPolicy; policyConfirmed: boolean; portfolio: Portfolio; scenario: Scenario; scenarioStartedAt?: string; receipts: WardynReceipt[]; runs: MonitoringRun[]; monitoring: boolean; revision: number };
 export async function initialState(): Promise<WardynState> {
   const first = await observe(new DemoProvider(), defaultPolicy, []);
   return { version: 1, policy: { ...defaultPolicy }, policyConfirmed: false, portfolio: first.portfolio, scenario: 'balanced', receipts: first.receipts, runs: [first.run], monitoring: false, revision: 0 };

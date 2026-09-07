@@ -20,3 +20,24 @@ test('pending intervention cannot be duplicated', async () => {
   const history: WardynReceipt[] = [{ id: 'test', createdAt: new Date().toISOString(), decision, before: p, expectedAfter: null, after: null, status: 'PENDING', verified: null, verification: null }];
   expect(decide(p, defaultPolicy, history).find(d => d.asset === 'SOL')?.cooldown).toBe(true);
 });
+
+test('profit taking scales out only the configured fraction', async () => {
+  const p = await portfolio('balanced');
+  p.positions.find(p => p.asset === 'SOL')!.pnlPct = 60;
+  const d = decide(p, defaultPolicy).find(d => d.asset === 'SOL')!;
+  expect(d.decision).toBe('REDUCE');
+  expect(d.trade?.positionPct).toBe(defaultPolicy.profitScalePct);
+});
+
+test('missing entry and peak history cannot claim complete protection', async () => {
+  const p = await portfolio('balanced');
+  p.positions.forEach(p => { p.pnlPct = null; p.drawdownPct = null; });
+  expect(decide(p, defaultPolicy).every(d => d.confidence === 'INSUFFICIENT_DATA')).toBe(true);
+});
+
+test('cooldown starts when a proposal is resolved', async () => {
+  const p = await portfolio('concentration');
+  const decision = decide(p, defaultPolicy).find(d => d.asset === 'SOL')!;
+  const history: WardynReceipt[] = [{ id: 'resolved', createdAt: new Date(Date.now() - 86400000).toISOString(), resolvedAt: new Date().toISOString(), decision, before: p, expectedAfter: null, after: null, status: 'REJECTED', verified: null, verification: null }];
+  expect(decide(p, defaultPolicy, history).find(d => d.asset === 'SOL')?.cooldown).toBe(true);
+});

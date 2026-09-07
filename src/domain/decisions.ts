@@ -11,8 +11,9 @@ export function decide(portfolio: Portfolio, policy: WardynPolicy, history: Ward
   return positions.map(p => {
     const triggers = violations.filter(v => v.asset === p.asset);
     const prior = history.filter(r => r.decision.asset === p.asset);
-    const pending = prior.some(r => r.status === 'PENDING');
-    const cooling = policy.overtradingProtection && prior.some(r => ['SIMULATED', 'REJECTED'].includes(r.status) && now.getTime() - Date.parse(r.createdAt) < policy.cooldownMinutes * 60000);
+    // A pending plan reserves the whole portfolio state. Do not layer new plans over it.
+    const pending = history.some(r => r.status === 'PENDING');
+    const cooling = policy.overtradingProtection && prior.some(r => ['SIMULATED', 'REJECTED'].includes(r.status) && now.getTime() - Date.parse(r.resolvedAt ?? r.createdAt) < policy.cooldownMinutes * 60000);
     const evidence = [
       { label: 'Allocation', value: `${p.allocationPct.toFixed(2)}%` },
       { label: 'Maximum allocation', value: `${policy.maxAssetAllocationPct}%` },
@@ -39,7 +40,11 @@ export function decide(portfolio: Portfolio, policy: WardynPolicy, history: Ward
       triggers.push(...violations.filter(v => v.rule === 'reserve'));
     }
     proceeds = Decimal.min(proceeds, new Decimal(p.valueUsdt).mul(policy.maxActionPct).div(100));
-    if (proceeds.lte(0)) return { ...base, reasons: ['No policy threshold is breached. Preserve the position and avoid unnecessary turnover.'] };
+    if (proceeds.lte(0)) {
+      const missing = (policy.lossProtectionEnabled && p.drawdownPct === null) || (policy.profitStrategy === 'scale_out' && p.pnlPct === null);
+      const broad = positions.every(position => position.change24hPct < 0);
+      return { ...base, confidence: missing ? 'INSUFFICIENT_DATA' : 'RULE_CONFIRMED', reasons: [missing ? 'Known allocation and reserve checks do not require an intervention. Entry or peak history is unavailable, so profit/loss protection cannot be fully evaluated.' : broad ? 'The decline is broad across the portfolio and no policy threshold is breached. Hold positions to avoid unnecessary turnover.' : 'No policy threshold is breached. Preserve the position and avoid unnecessary turnover.'] };
+    }
     // Round quantities down: a simulation cannot sell more than the position owns.
     const quantity = proceeds.div(p.priceUsdt).toDecimalPlaces(8, Decimal.ROUND_DOWN);
     proceeds = quantity.mul(p.priceUsdt);
