@@ -5,6 +5,7 @@ import { action, activatePolicy, connectAccount, runScenario, scan } from '../..
 import { policySchema } from '../../../domain/policy';
 import { interpretPolicy } from '../../../lib/ai/policy';
 import { publicSnapshots } from '../../../lib/binance/market';
+import { loopbackHost, sameOrigin } from '../../../server/request-security';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
 }
 export async function POST(request: NextRequest) {
   const id = session(request);
-  if (request.headers.get('origin') !== new URL(request.url).origin) return response({ error: 'Request origin is not allowed.' }, id, 403);
+  if (!sameOrigin(request.headers.get('origin'), request.headers.get('host'))) return response({ error: 'Request origin is not allowed.' }, id, 403);
   if (!request.headers.get('content-type')?.includes('application/json')) return response({ error: 'JSON is required.' }, id, 415);
   try {
     const raw = await request.text(); if (raw.length > 8192) return response({ error: 'Request is too large.' }, id, 413);
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
       return response(await interpretPolicy(command.text), id);
     }
     if (command.command === 'markets') return response({ snapshots: await publicSnapshots(), source: 'binance-public' }, id);
-    if (command.command === 'connect' && !['localhost', '127.0.0.1', '[::1]'].includes(new URL(request.url).hostname)) return response({ error: 'Account access is restricted to this local installation.' }, id, 403);
+    if (command.command === 'connect' && !loopbackHost(request.headers.get('host'))) return response({ error: 'Account access is restricted to this local installation.' }, id, 403);
     const result = await store.update(id, async state => {
       switch (command.command) {
         case 'scenario': await runScenario(state, command.scenario); break;
