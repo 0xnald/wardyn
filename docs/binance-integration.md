@@ -1,30 +1,89 @@
-# Binance integration verification
+# Binance integration
 
-Verified against official sources on September 6, 2026.
+This architecture was checked against the official Binance Agent Native and Skills Hub documentation on September 8, 2026.
 
-## Actual integration path
+## Implemented
 
-Wardyn implements a read-only `BinanceCliProvider` using the official Binance CLI recommended by the Binance Skills Hub. It runs only `spot get-account`, `spot ticker24hr`, and `spot klines`. Arguments are fixed or drawn from a three-symbol allowlist; no shell is involved. Responses pass Zod validation before domain calculations.
+Wardyn's embedded live provider uses the official Binance CLI 2.x described by Binance Skills Hub. The server invokes the binary directly without a shell. Arguments come from fixed commands, validated asset symbols, and a configured profile name.
 
-- [Official Binance Skill](https://github.com/binance/binance-skills-hub/blob/main/skills/binance/binance/SKILL.md)
-- [Official spot command reference](https://github.com/binance/binance-skills-hub/blob/main/skills/binance/binance/references/spot.md)
-- [CLI installation and authentication](https://github.com/binance/binance-cli)
-- [Spot market response schemas](https://developers.binance.com/en/docs/catalog/core-trading-spot-trading/api/rest-api/market)
+The provider uses these documented Spot operations:
 
-Install the official CLI using its supported platform instructions, configure a read-only account/profile, and set `WARDYN_BINANCE_READ_ENABLED=true`. `WARDYN_BINANCE_CLI_PATH` optionally points to the installed executable. The CLI uses its documented `BINANCE_API_KEY`, `BINANCE_SECRET_KEY`, and `BINANCE_API_ENV` variables or configured profile. Never put credentials in browser code or Git.
+| Operation            | Wardyn use                                                          |
+| -------------------- | ------------------------------------------------------------------- |
+| `spot get-account`   | Load free and locked balances and reported trading permission.      |
+| `spot exchange-info` | Discover active direct-USDT markets and lot-size rules.             |
+| `spot ticker24hr`    | Load current price, 24-hour movement, volume, and observation time. |
+| `spot klines`        | Calculate recent hourly return volatility.                          |
+| `spot new-order`     | Submit a confirmed MARKET SELL when live execution is enabled.      |
 
-The initial app supports BTC, BNB, SOL, and USDT. Nonzero unsupported balances cause a clear error rather than silently understating total exposure. Balances include free and locked amounts for valuation. Because cost basis and historical position peaks are not supplied by account balances, live PnL and drawdown remain unknown. Live order execution is intentionally unavailable.
+Any asset with an active direct USDT Spot market can be valued. Other nonzero balances remain visible as unvalued assets and are excluded from the allocation denominator. Wardyn does not silently discard them or substitute demo data after a failed connection.
 
-`publicSnapshots()` separately uses documented public REST endpoints for a read-only market preview. Public prices are not a connected account and are never labelled as Agent OS account access.
+Live scans use the same portfolio, policy, risk, decision, and receipt engines as demo scans. Before an approved order, Wardyn checks proposal age, reloads the account, confirms that the relevant balance has not changed, reapplies Binance lot-size rules, enforces the policy action limit, server asset allowlist, and server USDT ceiling, then submits the order. It reloads balances and markets after submission and derives the receipt's final portfolio from that refreshed account.
 
-## MCP
+The receipt records the real order ID, client order ID when returned, symbol, side, executed quantity, cumulative quote quantity, status, environment, and execution timestamp. The client order ID is deterministically derived from the Wardyn receipt ID to reduce duplicate-submission risk. No order identifiers are fabricated.
 
-[Official MCP documentation](https://developers.binance.com/en/docs/agent-native/mcp-server/agentic) specifies `https://agent.binance.com/mcp/agentic`, public market reads, permissioned account access, and user-confirmed writes. It does not enumerate exact tool names and schemas.
+The official CLI 2.1.1 and a public BTCUSDT ticker command were verified in WSL during development. Authenticated account reads and an actual order were not verified because no Binance credentials were available.
 
-`node scripts/discover-binance.mjs` uses the official MCP SDK to initialize a connection and list actual tool schemas. Discovery was attempted from the development environment and the endpoint returned a transport error. No tool names were invented. OAuth account connection and MCP order execution are not implemented or claimed. The CLI adapter is the implemented Skills Hub path; deployment requires a Node host with that executable installed.
+## Authentication
 
-## Validation limits
+Wardyn supports the CLI's official authentication methods:
 
-Adapter parsing is covered by contract fixtures. Account reads require credentials and an installed CLI; no authenticated end-to-end account read has been verified in this build environment. Unavailable live data is shown as an error, never replaced by hidden demo data.
+- a locally configured CLI profile selected with `WARDYN_BINANCE_PROFILE`; or
+- server-only `BINANCE_API_KEY`, `BINANCE_SECRET_KEY`, and `BINANCE_API_ENV` variables.
 
-Volatility is the population standard deviation of log returns over the available completed hourly candles, expressed as a percentage. It is not annualized or predictive. Demo values are explicitly synthetic. All prices and portfolio values use USDT as the quote unit.
+Profiles are preferred because secrets do not need to be copied into the project environment. Create one interactively with `binance-cli profile create -i`. On Windows, the official Linux binary can run through WSL by setting `WARDYN_BINANCE_CLI_WSL_DISTRO`; set `WARDYN_BINANCE_CLI_WSL_PATH` when it is installed outside `/root/.cargo/bin/binance-cli`. Otherwise set `WARDYN_BINANCE_CLI_PATH` or place `binance-cli` on the server PATH.
+
+Credentials are never returned by the API, copied into receipts, logged by Wardyn, or exposed to React. Connection and command errors use fixed messages that do not include subprocess output.
+
+## Execution modes
+
+**Monitor Only** is the default. It reads account and market data, evaluates policies, and generates proposals without submitting orders.
+
+**Approval Required** becomes selectable only when all of these conditions are true:
+
+1. account reads are enabled;
+2. the connected account reports trading permission;
+3. `WARDYN_BINANCE_EXECUTION_ENABLED=true`;
+4. `WARDYN_BINANCE_EXECUTION_ASSETS` contains at least one asset.
+
+Every live order requires the user to review the proposal and type `CONFIRM`. Wardyn only submits Spot market sells generated by its deterministic decision engine. Withdrawals, transfers, buys, arbitrary orders, futures, margin, and autonomous execution are unsupported.
+
+## Binance MCP
+
+The official [Binance MCP Server](https://developers.binance.com/en/docs/agent-native/mcp-server/agentic) now provides scoped market, account, Spot trading, and internal-transfer tools through an OAuth-authorized Agentic sub-account. It has no withdrawal scope and requires user confirmation for trades and transfers.
+
+MCP authorization is owned by the connected AI client. The published setup flow does not provide Wardyn with a stable application OAuth token or documented tool names to embed in this web server. Wardyn therefore does not imitate that login or invent MCP tool schemas. `node scripts/discover-binance.mjs` connects with the official MCP SDK and lists schemas when the runtime completes authorization.
+
+Users may connect Binance MCP directly to Codex, ChatGPT, Claude, VS Code, or another supported client for Agentic sub-account operations. Wardyn's in-app connection uses the official Skills CLI path because it has documented command and authentication contracts suitable for a local Node service.
+
+Binance Agentic Wallet is an on-chain MPC wallet for BSC, Ethereum, Base, and Solana. It is distinct from the centralized Binance Spot account managed by Wardyn, so it is not used here.
+
+## Demo-only
+
+- Synthetic balances, entry prices, tracked peaks, and named market scenarios.
+- Fee-free sale simulation and expected post-action portfolios before approval.
+- The full approval and receipt workflow when no exchange credentials are configured.
+
+## Optional
+
+- Anthropic-based natural-language policy extraction.
+- Live Spot execution through Binance CLI.
+- Binance MCP schema discovery in an authenticated MCP-capable client environment.
+
+## Unsupported
+
+- Withdrawals and transfers.
+- Spot buys, limit orders, margin, futures, leverage, and policy autopilot.
+- Valuation through indirect conversion routes.
+- Embedded Binance MCP OAuth.
+- Fabricated entry price or drawdown history.
+
+The account endpoint does not provide Spot cost basis. Although `spot my-trades` exposes per-symbol trade history, exact current cost basis cannot be reconstructed reliably when deposits, withdrawals, transfers, conversions, fees, and incomplete history are possible. Wardyn therefore displays entry price and PnL as unavailable for live positions while continuing concentration and reserve management.
+
+## Official sources
+
+- [Binance MCP Server](https://developers.binance.com/en/docs/agent-native/mcp-server/agentic)
+- [Binance Agentic Wallet](https://developers.binance.com/en/docs/products/agentic-wallet/welcome)
+- [Binance Skills Hub Spot reference](https://github.com/binance/binance-skills-hub/blob/main/skills/binance/binance/references/spot.md)
+- [Binance Skills Hub authentication rules](https://github.com/binance/binance-skills-hub/blob/main/skills/binance/binance/references/auth.md)
+- [Binance CLI](https://github.com/binance/binance-cli)

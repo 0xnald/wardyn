@@ -24,7 +24,7 @@
 
 - Severe deterioration: SOL has a 36% tracked-peak drawdown and triggers EXIT under the default 18% loss policy.
 - Reserve shortfall: REBALANCE restores the stablecoin buffer.
-- Connections: show the actual official Skills Hub CLI adapter and explain which credentials are needed. Do not claim a successful account connection unless it has been verified.
+- Connections: show Demo and Live Binance modes, the official Skills CLI activity, execution controls, and explain which credentials are needed. Do not claim a successful account connection unless it has been verified.
 - Receipt export: download the JSON to show that evidence is retained beyond the visual card.
 
 ## Suggested submission copy
@@ -33,11 +33,11 @@ Built Wardyn for Binance Agent OS Mini Hackathon — Track A.
 
 Most agents help you enter trades. Wardyn manages what happens after entry: user-defined policies, HOLD / REDUCE / EXIT / REBALANCE decisions, approval-first simulation, and evidence-backed decision receipts.
 
-Binance integration uses the official Skills Hub CLI for read-only account and market data. The full demo runs without funds or credentials.
+Binance integration uses the official Skills CLI for real Spot account and market data, with optional bounded Spot execution after explicit approval. The full demo runs without funds or credentials.
 
 GitHub: https://github.com/0xnald/wardyn
 
-Attach the recorded demo before posting. If the AI API is not configured in the recording, identify the parser as rule-based. MCP OAuth and live trading are not implemented and should not be claimed.
+Attach the recorded demo before posting. If the AI API is not configured in the recording, identify the parser as rule-based. Do not claim authenticated reads or a live trade unless that operation was completed in the recording.
 
 ## Entry checklist — user actions
 

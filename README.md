@@ -6,7 +6,7 @@ Wardyn is a policy-based position manager for existing cryptocurrency spot holdi
 
 You define the policy and approve interventions. Wardyn calculates the proposed adjustment and preserves the evidence in a downloadable receipt. It manages positions you already own; it does not discover tokens or select trade entries.
 
-Wardyn starts with simulated funds. Binance account access is read-only, and all action execution is limited to the demo portfolio.
+Wardyn supports an instant demo environment and Live Binance Mode. Live mode loads genuine Spot balances and market data through the official Binance Skills CLI, evaluates the active policy with the same engines as demo mode, and can submit an explicitly approved Spot sale when server and account permissions allow it.
 
 ![Wardyn dashboard showing a simulated SOL concentration decision](docs/screenshots/dashboard.png)
 
@@ -18,7 +18,7 @@ Wardyn starts with simulated funds. Binance account access is read-only, and all
 - **Wardyn Watch:** run manual scans or monitor every 30 seconds while the workspace tab is open and visible.
 - **Approval workflow:** review proposed sales before confirming a simulation.
 - **Decision receipts:** inspect the original portfolio, triggering rules, proposed trade, resulting portfolio, and verification status; export receipts as JSON.
-- **Binance data:** read supported account balances through the official Binance CLI or view public market data separately.
+- **Live Binance mode:** monitor dynamically valued Spot balances and optionally execute bounded, approved market sales through the official Binance Skills CLI.
 
 ## Getting started
 
@@ -106,16 +106,25 @@ Wardyn's account adapter uses the official Binance CLI associated with Binance S
 
 | Capability             | Interface                                  | Availability                                                      |
 | ---------------------- | ------------------------------------------ | ----------------------------------------------------------------- |
-| Spot balances          | `binance-cli spot get-account`             | Requires an installed CLI and authorized read access.             |
-| Market evidence        | `spot ticker24hr` and `spot klines`        | Used by the account adapter for supported assets.                 |
+| Spot balances          | `binance-cli spot get-account`             | Requires an installed CLI and authorized account access.          |
+| Market evidence        | `ticker24hr`, `klines`, `exchange-info`    | Values balances with an active direct USDT Spot market.           |
 | Public market preview  | `/api/v3/ticker/24hr` and `/api/v3/klines` | Separate read-only preview; does not connect an account.          |
 | MCP discovery          | `node scripts/discover-binance.mjs`        | Lists tool schemas when the documented MCP endpoint is reachable. |
 | MCP account connection | —                                          | Not supported.                                                    |
-| Live order execution   | —                                          | Not supported.                                                    |
+| Live order execution   | `binance-cli spot new-order`               | Optional approved market sells with an allowlist and ceiling.     |
 
-The account adapter is experimental and has not been validated with an authenticated account. It reports missing credentials, unavailable commands, and unsupported data as errors; it does not replace failed account reads with demo balances.
+The live provider reports missing credentials, unavailable commands, and unsupported data as errors; it never replaces failed account reads with demo balances. Authenticated account reads and a live order have not been validated in this repository environment, so enable execution only after testing the selected CLI profile and environment directly.
 
-Supported assets are **BTC, BNB, SOL, and USDT**. Nonzero unsupported account balances cause the import to fail to avoid understating portfolio exposure. Valuation includes free and locked balances. Account balances do not provide entry prices or tracked position peaks, so related protection checks may be unavailable.
+Wardyn supports any Spot asset with an active direct USDT market. Balances without one are listed as unvalued and excluded from allocation totals rather than silently omitted. Valuation includes free and locked balances. Account balances do not provide entry prices or tracked position peaks, so related protection checks may be unavailable.
+
+### Connect a Binance account
+
+1. Install Binance CLI 2.x using the [official instructions](https://github.com/binance/binance-cli). On Windows, install it inside WSL and set `WARDYN_BINANCE_CLI_WSL_DISTRO`; set `WARDYN_BINANCE_CLI_WSL_PATH` if the executable is outside `/root/.cargo/bin/`.
+2. Create a dedicated CLI profile interactively with `binance-cli profile create -i`. Grant read access first and select `prod`, `demo`, or `testnet` deliberately.
+3. Configure `.env.local` with `WARDYN_BINANCE_READ_ENABLED=true`, `WARDYN_BINANCE_PROFILE=<profile-name>`, and the matching `BINANCE_API_ENV`. Set either `WARDYN_BINANCE_CLI_PATH` or `WARDYN_BINANCE_CLI_WSL_DISTRO`.
+4. Restart Wardyn, open **Connections**, and select **Connect Binance**. Confirm the environment, permissions, valued assets, and any unvalued balances before relying on policy results.
+
+Live mode starts in **Monitor Only**. To make Approval Required available, additionally set `WARDYN_BINANCE_EXECUTION_ENABLED=true`, list permitted sell assets in `WARDYN_BINANCE_EXECUTION_ASSETS`, and set a conservative `WARDYN_BINANCE_MAX_ORDER_USDT`. Every order still requires the in-app approval dialog and typing `CONFIRM`.
 
 See the [Binance CLI setup](https://github.com/binance/binance-cli), [Skills Hub spot command reference](https://github.com/binance/binance-skills-hub/blob/main/skills/binance/binance/references/spot.md), and [Binance MCP documentation](https://developers.binance.com/en/docs/agent-native/mcp-server/agentic).
 
@@ -123,15 +132,21 @@ See the [Binance CLI setup](https://github.com/binance/binance-cli), [Skills Hub
 
 Copy `.env.example` to `.env.local` to enable optional integrations. Restart the server after changing configuration. Keep credentials server-side and out of version control.
 
-| Variable                      | Purpose                                                                       |
-| ----------------------------- | ----------------------------------------------------------------------------- |
-| `WARDYN_AI_API_KEY`           | Anthropic API key for policy interpretation.                                  |
-| `WARDYN_AI_MODEL`             | Model ID available to your Anthropic account; both AI variables are required. |
-| `WARDYN_BINANCE_READ_ENABLED` | Set to `true` after installing and authorizing the official CLI.              |
-| `WARDYN_BINANCE_CLI_PATH`     | Optional CLI executable path; otherwise uses `binance-cli` on PATH.           |
-| `BINANCE_API_KEY`             | CLI account credential; a configured CLI profile is also supported.           |
-| `BINANCE_SECRET_KEY`          | CLI secret.                                                                   |
-| `BINANCE_API_ENV`             | CLI environment: `prod`, `demo`, or `testnet`.                                |
+| Variable                           | Purpose                                                                       |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| `WARDYN_AI_API_KEY`                | Anthropic API key for policy interpretation.                                  |
+| `WARDYN_AI_MODEL`                  | Model ID available to your Anthropic account; both AI variables are required. |
+| `WARDYN_BINANCE_READ_ENABLED`      | Set to `true` after installing and authorizing the official CLI.              |
+| `WARDYN_BINANCE_CLI_PATH`          | Optional CLI executable path; otherwise uses `binance-cli` on PATH.           |
+| `WARDYN_BINANCE_CLI_WSL_DISTRO`    | Windows WSL distribution containing the official CLI.                         |
+| `WARDYN_BINANCE_CLI_WSL_PATH`      | Absolute CLI path inside WSL; defaults to `/root/.cargo/bin/binance-cli`.     |
+| `WARDYN_BINANCE_PROFILE`           | Optional CLI profile name used for every Binance command.                     |
+| `BINANCE_API_KEY`                  | CLI account credential; a configured CLI profile is also supported.           |
+| `BINANCE_SECRET_KEY`               | CLI secret.                                                                   |
+| `BINANCE_API_ENV`                  | CLI environment: `prod`, `demo`, or `testnet`.                                |
+| `WARDYN_BINANCE_EXECUTION_ENABLED` | Enables Approval Required when set to `true`.                                 |
+| `WARDYN_BINANCE_EXECUTION_ASSETS`  | Comma-separated assets that live execution may sell.                          |
+| `WARDYN_BINANCE_MAX_ORDER_USDT`    | Hard server ceiling for one order; defaults to 100 USDT.                      |
 
 Enable only read permissions for account access. The account connection is restricted to loopback requests and intended for a private local installation.
 
@@ -139,7 +154,7 @@ Enable only read permissions for account access. The account connection is restr
 
 Wardyn uses Next.js, React, TypeScript, Zod, and decimal.js. A Node server owns integrations, portfolio calculations, workflow state, and persistence. The browser displays the workspace and submits user actions.
 
-**Observe → Analyze → Decide → Approve → Simulate → Verify → Receipt**
+**Observe → Analyze → Decide → Approve → Execute → Verify → Receipt**
 
 ```mermaid
 flowchart LR
@@ -154,7 +169,9 @@ flowchart LR
     Decisions --> Receipts[Decision receipts]
     Decisions --> Approval[User approval]
     Approval --> Simulation[Demo simulation]
+    Approval --> LiveOrder[Approved Binance Spot sale]
     Simulation --> Verify[Recalculate and verify]
+    LiveOrder --> Verify
     Verify --> Receipts
     Receipts --> Storage[Session storage]
 ```
@@ -195,8 +212,8 @@ Run the initial build to generate Next.js route declarations before type-checkin
 
 ## Limitations
 
-- Action execution is simulated; Wardyn does not place exchange orders.
-- Live account access supports only the listed spot assets and requires a local CLI installation.
+- Live Spot execution is optional and restricted to market sells; it requires explicit server configuration, account trade permission, and user confirmation.
+- Live account access requires an official Binance CLI installation and a locally configured profile or server-side credentials.
 - Missing entry prices or tracked peaks limit profit and drawdown evaluation.
 - USDT is the valuation unit; displayed values do not assume a guaranteed US dollar peg.
 - The application is intended for a private, single-process installation with persistent storage, not a public multi-user service with shared credentials.
