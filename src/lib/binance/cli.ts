@@ -133,10 +133,19 @@ export class BinanceCliProvider implements BinanceProvider {
     if (authenticated && !enabled())
       throw new Error('Binance account reads are disabled on this server.');
     const profile = process.env.WARDYN_BINANCE_PROFILE;
-    const invocation = ['spot', command, ...args, ...(profile ? ['--profile', profile] : [])];
+    const cliArgs = ['spot', command, ...args, ...(profile ? ['--profile', profile] : [])];
+    const wslDistro = process.env.WARDYN_BINANCE_CLI_WSL_DISTRO;
+    if (wslDistro && !/^[A-Za-z0-9._-]{1,64}$/.test(wslDistro))
+      throw new Error('WARDYN_BINANCE_CLI_WSL_DISTRO contains unsupported characters.');
+    const executable = wslDistro
+      ? 'wsl.exe'
+      : process.env.WARDYN_BINANCE_CLI_PATH || 'binance-cli';
+    const invocation = wslDistro
+      ? ['-d', wslDistro, '--', '/root/.cargo/bin/binance-cli', ...cliArgs]
+      : cliArgs;
     try {
       const { stdout } = await exec(
-        process.env.WARDYN_BINANCE_CLI_PATH || 'binance-cli',
+        executable,
         invocation,
         { timeout: 20000, maxBuffer: 4 * 1024 * 1024, windowsHide: true, env: process.env },
       );

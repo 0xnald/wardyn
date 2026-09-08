@@ -140,6 +140,16 @@ test('read-only mode and stale quotes prevent live execution', async () => {
   expect(trading.executed).toBe(false);
 });
 
+test('live action cannot pass the approval boundary without explicit confirmation', async () => {
+  const state = await initialState();
+  await runScenario(state, 'concentration');
+  const pending = state.receipts.find((receipt) => receipt.status === 'PENDING')!;
+  state.mode = 'binance';
+  state.executionMode = 'approval_required';
+  await expect(action(state, pending.id, true)).rejects.toThrow('Type CONFIRM');
+  expect(state.receipts.find((receipt) => receipt.id === pending.id)?.status).toBe('PENDING');
+});
+
 test('approved live execution is verified from refreshed balances and preserves order identity', async () => {
   const state = await initialState();
   const provider = new TestBinanceProvider(true);
