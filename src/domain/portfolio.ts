@@ -16,6 +16,10 @@ export function calculatePortfolio(
   snapshots: MarketSnapshot[],
   source: Portfolio['source'],
   now = new Date(),
+  options: Pick<Portfolio, 'environment' | 'unvaluedAssets'> = {
+    environment: source === 'demo' ? 'demo' : 'mainnet',
+    unvaluedAssets: [],
+  },
 ): Portfolio {
   const seen = new Set<string>();
   const parsed = balances.map((b) => balanceSchema.parse(b));
@@ -55,6 +59,7 @@ export function calculatePortfolio(
     totalValueUsdt: money(total),
     stableReservePct: positions.find((p) => p.asset === 'USDT')?.allocationPct ?? 0,
     source,
+    ...options,
     observedAt: now.toISOString(),
   };
 }

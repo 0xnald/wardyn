@@ -49,6 +49,16 @@ export class DemoProvider implements BinanceProvider {
     readonly scenario: Scenario = 'balanced',
     private now = new Date(),
   ) {}
+  capabilities() {
+    return {
+      accountRead: true,
+      marketData: true,
+      spotExecution: false,
+      executionMode: 'simulation' as const,
+      environment: 'demo' as const,
+      integration: 'demo' as const,
+    };
+  }
   async getBalances(): Promise<AssetBalance[]> {
     const s = scenarios[this.scenario];
     return (['BTC', 'BNB', 'SOL', 'USDT'] as Asset[]).map((asset, i) => ({
@@ -57,6 +67,14 @@ export class DemoProvider implements BinanceProvider {
       entryPriceUsdt: String([95000, 580, 160, 1][i]),
       peakPriceUsdt: String([100000, 600, 200, 1][i] / (1 - s.drawdowns[i] / 100)),
     }));
+  }
+  async getAccount() {
+    return {
+      balances: await this.getBalances(),
+      unvaluedAssets: [],
+      canTrade: false,
+      observedAt: this.now.toISOString(),
+    };
   }
   async getMarketSnapshots(): Promise<MarketSnapshot[]> {
     const s = scenarios[this.scenario];
@@ -70,6 +88,6 @@ export class DemoProvider implements BinanceProvider {
     }));
   }
   async prepareTrade(intent: TradeIntent) {
-    return { intent, execution: 'simulation_only' as const };
+    return { intent, execution: 'simulation' as const };
   }
 }

@@ -15,7 +15,10 @@ export function analyze(
   const events: MonitoringRun['events'] = [];
   const log = (stage: string, message: string) =>
     events.push({ stage, message, timestamp: now.toISOString() });
-  log('OBSERVE', 'Portfolio loaded and market snapshots validated');
+  log(
+    'OBSERVE',
+    `${portfolio.source === 'demo' ? 'Demo portfolio' : `Binance ${portfolio.environment} Spot account`} loaded; market snapshots validated`,
+  );
   log('ANALYZE', `${portfolio.positions.length} positions analyzed against the active policy`);
   const risk = assessRisk(portfolio, policy);
   const decisions = decide(portfolio, policy, history, now);
@@ -63,12 +66,15 @@ export async function observe(
   history: WardynReceipt[],
   now = new Date(),
 ) {
-  const [balances, snapshots] = await Promise.all([
-    provider.getBalances(),
-    provider.getMarketSnapshots(),
-  ]);
+  const account = await provider.getAccount();
+  const balances = account.balances;
+  const snapshots = await provider.getMarketSnapshots(balances.map((balance) => balance.asset));
+  const capabilities = provider.capabilities();
   return analyze(
-    calculatePortfolio(balances, snapshots, provider.source, now),
+    calculatePortfolio(balances, snapshots, provider.source, now, {
+      environment: capabilities.environment,
+      unvaluedAssets: account.unvaluedAssets,
+    }),
     policy,
     history,
     now,

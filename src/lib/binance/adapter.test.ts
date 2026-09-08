@@ -1,13 +1,30 @@
 import { expect, test } from 'vitest';
-import { parseBalances } from './cli';
+import { parseAccount, parseBalances } from './cli';
 import { parseMarket } from './market';
-test('account adapter includes locked balances and rejects partial portfolios', () => {
+test('account adapter includes locked balances and accepts dynamic assets', () => {
   expect(
     parseBalances({ balances: [{ asset: 'BTC', free: '0.1', locked: '0.2' }] })[0].quantity,
   ).toBe('0.30000000');
-  expect(() => parseBalances({ balances: [{ asset: 'DOGE', free: '10', locked: '0' }] })).toThrow(
-    'unsupported',
+  expect(parseBalances({ balances: [{ asset: 'DOGE', free: '10', locked: '0' }] })[0].asset).toBe(
+    'DOGE',
   );
+});
+test('account adapter separates assets without a direct USDT market', () => {
+  const result = parseAccount(
+    {
+      canTrade: true,
+      balances: [
+        { asset: 'DOGE', free: '10', locked: '0' },
+        { asset: 'ODD', free: '2', locked: '0' },
+      ],
+    },
+    [{ symbol: 'DOGEUSDT', baseAsset: 'DOGE', quoteAsset: 'USDT', status: 'TRADING', filters: [] }],
+  );
+  expect(result.balances.map((balance) => balance.asset)).toEqual(['DOGE']);
+  expect(result.unvaluedAssets).toEqual([
+    { asset: 'ODD', quantity: '2.00000000', reason: 'No active direct USDT Spot market' },
+  ]);
+  expect(result.canTrade).toBe(true);
 });
 test('market adapter checks symbol and validates numerical evidence', () => {
   const ticker = {

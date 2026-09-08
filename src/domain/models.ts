@@ -5,7 +5,7 @@ export const decimalString = z
   .string()
   .regex(/^\d+(\.\d+)?$/)
   .refine((v) => Number.isFinite(Number(v)), 'Finite decimal required');
-export const assetSchema = z.enum(['BTC', 'BNB', 'SOL', 'USDT']);
+export const assetSchema = z.string().regex(/^[A-Z0-9]{2,20}$/);
 export type Asset = z.infer<typeof assetSchema>;
 export const balanceSchema = z.object({
   asset: assetSchema,
@@ -39,6 +39,8 @@ export type Portfolio = {
   stableReservePct: number;
   observedAt: string;
   source: 'demo' | 'binance-cli' | 'binance-mcp' | 'binance-public';
+  environment: 'demo' | 'mainnet' | 'testnet' | 'binance-demo';
+  unvaluedAssets: { asset: Asset; quantity: string; reason: string }[];
 };
 export type DecisionKind = 'HOLD' | 'REDUCE' | 'EXIT' | 'REBALANCE';
 export type RiskLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
@@ -56,7 +58,7 @@ export type PolicyViolation = {
 };
 export type DecisionEvidence = { label: string; value: string };
 export type TradeIntent = {
-  asset: Exclude<Asset, 'USDT'>;
+  asset: Asset;
   side: 'SELL';
   quantity: string;
   estimatedProceedsUsdt: string;
@@ -82,9 +84,21 @@ export type WardynReceipt = {
   before: Portfolio;
   expectedAfter: Portfolio | null;
   after: Portfolio | null;
-  status: 'HOLD' | 'PENDING' | 'SIMULATED' | 'REJECTED' | 'SUPERSEDED';
+  status: 'HOLD' | 'PENDING' | 'SIMULATED' | 'EXECUTED' | 'FAILED' | 'REJECTED' | 'SUPERSEDED';
   verified: boolean | null;
   verification: string | null;
+  execution?: {
+    provider: 'binance-cli';
+    environment: 'mainnet' | 'testnet' | 'binance-demo';
+    symbol: string;
+    side: 'SELL';
+    orderId: string;
+    clientOrderId?: string;
+    status: string;
+    executedQuantity: string;
+    cumulativeQuoteQuantity: string;
+    executedAt: string;
+  };
 };
 export type MonitoringRun = {
   id: string;

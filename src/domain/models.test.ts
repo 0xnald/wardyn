@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
 import { balanceSchema, snapshotSchema } from './models';
-test('rejects negative balances and unsupported assets', () => {
+test('rejects negative balances and malformed asset symbols', () => {
   expect(balanceSchema.safeParse({ asset: 'BTC', quantity: '-1' }).success).toBe(false);
-  expect(balanceSchema.safeParse({ asset: 'UNKNOWN', quantity: '1' }).success).toBe(false);
+  expect(balanceSchema.safeParse({ asset: 'bad/token', quantity: '1' }).success).toBe(false);
 });
 test('rejects zero prices before financial calculations', () => {
   expect(
