@@ -6,7 +6,16 @@ import { DemoProvider, type Scenario } from '../features/demo/provider';
 import { observe } from './monitor';
 
 export type WardynState = {
-  version: 1;
+  version: 2;
+  mode: 'demo' | 'binance';
+  executionMode: 'monitor_only' | 'approval_required';
+  connection: {
+    status: 'DISCONNECTED' | 'CONNECTED' | 'ERROR';
+    environment: 'mainnet' | 'testnet' | 'binance-demo' | null;
+    canTrade: boolean;
+    message: string | null;
+    connectedAt: string | null;
+  };
   policy: WardynPolicy;
   policyConfirmed: boolean;
   portfolio: Portfolio;
@@ -20,7 +29,16 @@ export type WardynState = {
 export async function initialState(): Promise<WardynState> {
   const first = await observe(new DemoProvider(), defaultPolicy, []);
   return {
-    version: 1,
+    version: 2,
+    mode: 'demo',
+    executionMode: 'monitor_only',
+    connection: {
+      status: 'DISCONNECTED',
+      environment: null,
+      canTrade: false,
+      message: null,
+      connectedAt: null,
+    },
     policy: { ...defaultPolicy },
     policyConfirmed: false,
     portfolio: first.portfolio,
@@ -46,7 +64,24 @@ export class StateStore {
         let state: WardynState;
         try {
           state = JSON.parse(await readFile(file, 'utf8')) as WardynState;
-          if (state.version !== 1 || !Array.isArray(state.receipts) || !state.portfolio)
+          if ((state as { version: number }).version === 1) {
+            state = {
+              ...state,
+              version: 2,
+              mode: state.portfolio.source === 'binance-cli' ? 'binance' : 'demo',
+              executionMode: 'monitor_only',
+              connection: {
+                status: state.portfolio.source === 'binance-cli' ? 'CONNECTED' : 'DISCONNECTED',
+                environment: state.portfolio.source === 'binance-cli' ? 'mainnet' : null,
+                canTrade: false,
+                message: null,
+                connectedAt: null,
+              },
+            } as WardynState;
+            state.portfolio.environment = state.mode === 'demo' ? 'demo' : 'mainnet';
+            state.portfolio.unvaluedAssets = [];
+          }
+          if (state.version !== 2 || !Array.isArray(state.receipts) || !state.portfolio)
             throw new Error('Unsupported saved state');
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT')

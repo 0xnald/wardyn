@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { store } from '../../../server/store';
-import { action, activatePolicy, connectAccount, runScenario, scan } from '../../../server/service';
+import {
+  action,
+  activatePolicy,
+  connectAccount,
+  disconnectAccount,
+  runScenario,
+  scan,
+} from '../../../server/service';
 import { policySchema } from '../../../domain/policy';
 import { interpretPolicy } from '../../../lib/ai/policy';
 import { publicSnapshots } from '../../../lib/binance/market';
@@ -17,9 +24,19 @@ const commandSchema = z.discriminatedUnion('command', [
   z.object({ command: z.literal('scan') }),
   z.object({ command: z.literal('policy'), policy: policySchema }),
   z.object({ command: z.literal('interpret'), text: z.string().min(10).max(2000) }),
-  z.object({ command: z.literal('action'), receiptId: z.string().uuid(), approve: z.boolean() }),
+  z.object({
+    command: z.literal('action'),
+    receiptId: z.string().uuid(),
+    approve: z.boolean(),
+    confirmation: z.string().max(20).optional(),
+  }),
   z.object({ command: z.literal('monitor'), enabled: z.boolean() }),
   z.object({ command: z.literal('connect') }),
+  z.object({ command: z.literal('disconnect') }),
+  z.object({
+    command: z.literal('execution-mode'),
+    mode: z.enum(['monitor_only', 'approval_required']),
+  }),
   z.object({ command: z.literal('markets') }),
 ]);
 const lastAiCall = new Map<string, number>();
@@ -84,7 +101,7 @@ export async function POST(request: NextRequest) {
           await activatePolicy(state, command.policy);
           break;
         case 'action':
-          await action(state, command.receiptId, command.approve);
+          await action(state, command.receiptId, command.approve, command.confirmation);
           break;
         case 'monitor':
           state.monitoring = command.enabled;
@@ -92,6 +109,17 @@ export async function POST(request: NextRequest) {
           break;
         case 'connect':
           await connectAccount(state);
+          break;
+        case 'disconnect':
+          await disconnectAccount(state);
+          break;
+        case 'execution-mode':
+          if (command.mode === 'approval_required' && !state.connection.canTrade)
+            throw new Error(
+              'Trading is unavailable. Enable server execution and connect a Spot-trading account first.',
+            );
+          state.executionMode = command.mode;
+          state.revision += 1;
           break;
       }
       return state;
