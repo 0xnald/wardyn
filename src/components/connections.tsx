@@ -6,7 +6,7 @@ import type { MarketSnapshot } from '../domain/models';
 import { pct, time, usd } from './format';
 
 export function Connections() {
-  const { state, busy, mutate, request } = useWorkspace();
+  const { state, busy, accessCode, setAccessCode, mutate, request } = useWorkspace();
   const [markets, setMarkets] = useState<MarketSnapshot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export function Connections() {
           </span>
           <h2>Live Binance</h2>
           <span className={`status ${state.connection.status === 'ERROR' ? 'attention' : ''}`}>
-              {busy && !live ? 'CONNECTING' : state.connection.status}
+            {busy && !live ? 'CONNECTING' : state.connection.status}
             {live ? ` · ${state.connection.canTrade ? 'TRADING ENABLED' : 'READ ONLY'}` : ''}
           </span>
           <p className="inline-note">
@@ -69,6 +69,18 @@ export function Connections() {
               Connect your Binance account and let Wardyn monitor your real positions.
             </strong>
           </p>
+          {!live && (
+            <label className="field">
+              <span>Remote backend access code</span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={accessCode}
+                onChange={(event) => setAccessCode(event.target.value)}
+                placeholder="Required for hosted Live Binance"
+              />
+            </label>
+          )}
           {state.connection.message && (
             <p role="alert" className="negative inline-note">
               {state.connection.message}

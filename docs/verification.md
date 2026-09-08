@@ -4,7 +4,7 @@ Verified locally on September 8, 2026:
 
 - TypeScript: passed, including production route checking.
 - ESLint: passed.
-- Vitest: 37 tests across 14 files passed. The suite includes provider switching, failed live connections without demo fallback, dynamic balance valuation, unvalued assets, stale-quote rejection, read-only enforcement, explicit live confirmation, post-order refresh, and real order-ID preservation through an injected Binance provider contract.
+- Vitest: 38 tests across 14 files passed. The suite includes provider switching, failed live connections without demo fallback, dynamic balance valuation, unvalued assets, stale-quote rejection, read-only enforcement, explicit live confirmation, post-order refresh, real order-ID preservation through an injected Binance provider contract, hosted-origin validation, and remote access-code comparison.
 - Prettier: all matched files passed.
 - Next.js production build: all nine routes compiled/generated successfully.
 - Headless Chromium: scenario selection, proposal review, approval confirmation, verified simulation receipt, rule-based policy interpretation and activation, Watch start/pause, and the expected unavailable-account error passed.

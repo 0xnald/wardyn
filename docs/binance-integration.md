@@ -33,6 +33,8 @@ Wardyn supports the CLI's official authentication methods:
 
 Profiles are preferred because secrets do not need to be copied into the project environment. Create one interactively with `binance-cli profile create -i`. On Windows, the official Linux binary can run through WSL by setting `WARDYN_BINANCE_CLI_WSL_DISTRO`; set `WARDYN_BINANCE_CLI_WSL_PATH` when it is installed outside `/root/.cargo/bin/binance-cli`. Otherwise set `WARDYN_BINANCE_CLI_PATH` or place `binance-cli` on the server PATH.
 
+For hosted operation, the repository includes a Railway Docker image with Binance CLI 2.1.1 pinned by checksum. Railway supplies the CLI credentials as server-only secrets and stores Wardyn sessions on a mounted volume. A Vercel build can set `WARDYN_BACKEND_URL` to proxy the browser API path to Railway. Remote live access additionally requires `WARDYN_REMOTE_BINANCE_ENABLED=true`, an access code of at least 16 characters, and an exact `WARDYN_ALLOWED_ORIGIN`.
+
 Credentials are never returned by the API, copied into receipts, logged by Wardyn, or exposed to React. Connection and command errors use fixed messages that do not include subprocess output.
 
 ## Execution modes

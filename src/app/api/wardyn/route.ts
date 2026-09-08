@@ -12,7 +12,7 @@ import {
 import { policySchema } from '../../../domain/policy';
 import { interpretPolicy } from '../../../lib/ai/policy';
 import { publicSnapshots } from '../../../lib/binance/market';
-import { loopbackHost, sameOrigin } from '../../../server/request-security';
+import { loopbackHost, sameOrigin, validAccessCode } from '../../../server/request-security';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,7 +65,18 @@ export async function GET(request: NextRequest) {
 }
 export async function POST(request: NextRequest) {
   const id = session(request);
-  if (!sameOrigin(request.headers.get('origin'), request.headers.get('host')))
+  const local = loopbackHost(request.headers.get('host'));
+  const remoteEnabled = process.env.WARDYN_REMOTE_BINANCE_ENABLED === 'true';
+  const remoteAuthorized =
+    remoteEnabled &&
+    validAccessCode(request.headers.get('x-wardyn-access-code'), process.env.WARDYN_ACCESS_CODE);
+  if (
+    !sameOrigin(
+      request.headers.get('origin'),
+      request.headers.get('host'),
+      process.env.WARDYN_ALLOWED_ORIGIN,
+    )
+  )
     return response({ error: 'Request origin is not allowed.' }, id, 403);
   if (!request.headers.get('content-type')?.includes('application/json'))
     return response({ error: 'JSON is required.' }, id, 415);
@@ -83,13 +94,24 @@ export async function POST(request: NextRequest) {
     }
     if (command.command === 'markets')
       return response({ snapshots: await publicSnapshots(), source: 'binance-public' }, id);
-    if (command.command === 'connect' && !loopbackHost(request.headers.get('host')))
+    if (command.command === 'connect' && !local && !remoteAuthorized)
       return response(
-        { error: 'Account access is restricted to this local installation.' },
+        {
+          error: remoteEnabled
+            ? 'Enter the Wardyn backend access code before connecting Binance.'
+            : 'Remote Binance access is disabled on this server.',
+        },
         id,
-        403,
+        401,
       );
     const result = await store.update(id, async (state) => {
+      if (
+        state.mode === 'binance' &&
+        !local &&
+        !remoteAuthorized &&
+        command.command !== 'disconnect'
+      )
+        throw new Error('The Wardyn backend access code is required for this live session.');
       switch (command.command) {
         case 'scenario':
           await runScenario(state, command.scenario);

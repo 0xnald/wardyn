@@ -6,6 +6,8 @@ type WorkspaceContext = {
   state: WardynState | null;
   busy: boolean;
   error: string | null;
+  accessCode: string;
+  setAccessCode: (value: string) => void;
   mutate: (body: unknown) => Promise<void>;
   request: <T>(body: unknown) => Promise<T>;
   reload: () => Promise<void>;
@@ -15,6 +17,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<WardynState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessCode, setAccessCodeState] = useState('');
   const locked = useRef(false);
   const reload = useCallback(async () => {
     try {
@@ -41,16 +44,25 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       });
     return () => controller.abort();
   }, []);
-  const request = useCallback(async <T,>(body: unknown): Promise<T> => {
-    const response = await fetch('/api/wardyn', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error ?? 'Request failed');
-    return data as T;
+  const setAccessCode = useCallback((value: string) => {
+    setAccessCodeState(value);
   }, []);
+  const request = useCallback(
+    async <T,>(body: unknown): Promise<T> => {
+      const response = await fetch('/api/wardyn', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessCode ? { 'X-Wardyn-Access-Code': accessCode } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'Request failed');
+      return data as T;
+    },
+    [accessCode],
+  );
   const mutate = useCallback(
     async (body: unknown) => {
       if (locked.current) return;
@@ -76,7 +88,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(timer);
   }, [state?.monitoring, mutate]);
   return (
-    <Context.Provider value={{ state, busy, error, mutate, request, reload }}>
+    <Context.Provider
+      value={{ state, busy, error, accessCode, setAccessCode, mutate, request, reload }}
+    >
       {children}
     </Context.Provider>
   );

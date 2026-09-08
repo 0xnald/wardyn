@@ -42,6 +42,21 @@ pnpm start
 
 Both servers use port 3000 by default, so stop the development server before starting the production server.
 
+### Railway backend and Vercel frontend
+
+The hosted architecture runs Wardyn's stateful backend and official Binance CLI in Railway while Vercel serves the frontend. Vercel proxies `/api/wardyn` to Railway, preserving same-origin browser requests and HTTP-only session cookies.
+
+1. Create a Railway service from this repository. Railway uses `Dockerfile`, which installs the pinned official Binance CLI release and verifies its SHA-256 checksum.
+2. Add a Railway volume mounted at `/data` and set `WARDYN_DATA_DIR=/data/wardyn`.
+3. Configure the Railway variables from `.env.example`. For hosted account access, set `WARDYN_REMOTE_BINANCE_ENABLED=true` and a random `WARDYN_ACCESS_CODE` of at least 16 characters. Keep execution disabled until account reads work.
+4. Generate a Railway domain and verify `https://<railway-domain>/api/health`.
+5. Create a Vercel project from the same repository and set `WARDYN_BACKEND_URL=https://<railway-domain>` for Production and Preview builds.
+6. Set Railway's `WARDYN_ALLOWED_ORIGIN` to the final Vercel origin, then redeploy both services.
+
+Enter the access code on Wardyn's Connections page before connecting Live Binance. The code remains in browser memory and is sent only to the same-origin API proxy over HTTPS. It is not stored in the repository or frontend bundle.
+
+The Railway service accepts direct Binance API credentials because an interactive CLI profile is not present inside a new container. Configure `BINANCE_API_KEY`, `BINANCE_SECRET_KEY`, and `BINANCE_API_ENV` as Railway secrets. Use a dedicated Spot key with withdrawals disabled and the narrowest permissions possible.
+
 ## Using Wardyn
 
 1. Open **Your policy** and describe how you want your positions managed.
@@ -148,7 +163,7 @@ Copy `.env.example` to `.env.local` to enable optional integrations. Restart the
 | `WARDYN_BINANCE_EXECUTION_ASSETS`  | Comma-separated assets that live execution may sell.                          |
 | `WARDYN_BINANCE_MAX_ORDER_USDT`    | Hard server ceiling for one order; defaults to 100 USDT.                      |
 
-Enable only read permissions for account access. The account connection is restricted to loopback requests and intended for a private local installation.
+Enable only read permissions for initial account access. Remote Binance access remains disabled unless the backend explicitly enables it and validates the configured access code.
 
 ## Architecture
 

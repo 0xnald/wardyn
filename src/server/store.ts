@@ -1,4 +1,5 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { MonitoringRun, Portfolio, WardynReceipt } from '../domain/models';
 import { defaultPolicy, type WardynPolicy } from '../domain/policy';
@@ -51,7 +52,10 @@ export async function initialState(): Promise<WardynState> {
 }
 const queues = new Map<string, Promise<unknown>>();
 export class StateStore {
-  constructor(private directory = path.join(process.cwd(), '.wardyn')) {}
+  constructor(
+    private directory = process.env.WARDYN_DATA_DIR ||
+      (process.env.VERCEL ? path.join(tmpdir(), 'wardyn') : path.join(process.cwd(), '.wardyn')),
+  ) {}
   async update<T>(session: string, operation: (state: WardynState) => Promise<T>): Promise<T> {
     if (!/^[0-9a-f-]{36}$/i.test(session)) throw new Error('Invalid session');
     const key = `${this.directory}/${session}`;
