@@ -19,3 +19,8 @@ export const assetNames: Record<string, string> = {
   SOL: 'Solana',
   USDT: 'Tether',
 };
+export const assetStyle = (asset: string) => {
+  if (assetNames[asset]) return undefined;
+  const hue = [...asset].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 360;
+  return { backgroundColor: `hsl(${hue} 36% 57%)` };
+};

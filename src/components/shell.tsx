@@ -71,7 +71,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="profile">
             <span>W</span>
             <div>
-              Personal workspace<small>Hackathon edition</small>
+              Personal workspace
+              <small>{state?.mode === 'binance' ? 'Binance connected' : 'Demo portfolio'}</small>
             </div>
           </div>
         </div>
@@ -83,13 +84,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {navigation.find((n) => n.href === pathname)?.label ?? 'Position intelligence'}
           </span>
           <div className="topbar-actions">
-            <span
-              className={`mode ${state?.portfolio.source === 'binance-cli' ? 'live-mode' : ''}`}
-            >
+            <span className={`mode ${state?.mode === 'binance' ? 'live-mode' : ''}`}>
               <span className="live-dot" />
-              {state?.portfolio.source === 'binance-cli'
-                ? 'LIVE DATA · READ ONLY'
-                : 'DEMO · SIMULATED FUNDS'}
+              {state?.mode === 'binance'
+                ? state.executionMode === 'approval_required'
+                  ? `LIVE FUNDS · ${state.connection.environment?.toUpperCase()}`
+                  : `LIVE BINANCE · ${state.connection.environment?.toUpperCase()} · READ ONLY`
+                : 'DEMO MODE · SIMULATED FUNDS'}
             </span>
             <a
               href="https://github.com/0xnald/wardyn"

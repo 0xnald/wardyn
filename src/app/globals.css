@@ -1638,3 +1638,77 @@ select {
 .right-column {
   min-width: 0;
 }
+.active-connection {
+  border-color: #50735f;
+  box-shadow: 0 0 0 1px #345344 inset;
+}
+.connection-meta {
+  display: grid;
+  gap: 1px;
+  margin: 20px 0;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.connection-meta > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 11px 13px;
+  background: #111820;
+  font-size: 12px;
+}
+.connection-meta span {
+  color: var(--muted);
+}
+.connection-meta strong {
+  text-align: right;
+  font-weight: 500;
+}
+.connection-card select {
+  display: block;
+  width: 100%;
+  margin-top: 22px;
+}
+.agent-os-panel {
+  grid-column: 1 / -1;
+}
+.agent-events {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 20px 0;
+}
+.agent-events > div {
+  display: flex;
+  gap: 10px;
+  padding: 11px;
+  background: #111820;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.agent-events > div > span {
+  color: var(--green);
+}
+.agent-events p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.agent-events strong {
+  display: block;
+  color: var(--text);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.approval-dialog input {
+  width: 100%;
+}
+@media (max-width: 600px) {
+  .agent-events {
+    grid-template-columns: 1fr;
+  }
+  .connection-meta > div {
+    align-items: flex-start;
+  }
+}

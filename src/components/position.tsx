@@ -32,7 +32,15 @@ export function PositionDetail({ asset }: { asset: string }) {
       <div className="page-heading">
         <div className="position-title">
           <span className={`asset-icon ${asset}`}>
-            {asset === 'BTC' ? '₿' : asset === 'SOL' ? '≋' : asset === 'BNB' ? '◇' : '₮'}
+            {asset === 'BTC'
+              ? '₿'
+              : asset === 'SOL'
+                ? '≋'
+                : asset === 'BNB'
+                  ? '◇'
+                  : asset === 'USDT'
+                    ? '₮'
+                    : asset.slice(0, 1)}
           </span>
           <div>
             <h1>

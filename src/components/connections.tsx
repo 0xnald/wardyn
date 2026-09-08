@@ -4,17 +4,21 @@ import { ArrowUpRight, FlaskConical, Plug, Radio, ShieldCheck } from 'lucide-rea
 import { useWorkspace } from './workspace-context';
 import type { MarketSnapshot } from '../domain/models';
 import { pct, time, usd } from './format';
+
 export function Connections() {
   const { state, busy, mutate, request } = useWorkspace();
   const [markets, setMarkets] = useState<MarketSnapshot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  if (!state) return null;
+  const live = state.mode === 'binance';
   async function loadMarkets() {
     setLoading(true);
     setError(null);
     try {
-      const result = await request<{ snapshots: MarketSnapshot[] }>({ command: 'markets' });
-      setMarkets(result.snapshots);
+      setMarkets(
+        (await request<{ snapshots: MarketSnapshot[] }>({ command: 'markets' })).snapshots,
+      );
     } catch (e) {
       setMarkets([]);
       setError(e instanceof Error ? e.message : 'Market data unavailable');
@@ -26,72 +30,122 @@ export function Connections() {
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">BINANCE-NATIVE BY DESIGN</div>
-          <h1>Know where your data comes from.</h1>
-          <p>Clear sources, limited permissions, and no hidden fallback data.</p>
+          <div className="eyebrow">WARDYN MODE</div>
+          <h1>Choose how to use Wardyn.</h1>
+          <p>Connection, market data, execution, and Agent OS activity in one place.</p>
         </div>
       </div>
       <div className="two-column">
-        <section className="panel connection-card">
+        <section className={`panel connection-card ${!live ? 'active-connection' : ''}`}>
           <span className="connection-icon">
             <FlaskConical size={22} />
           </span>
-          <h2>Wardyn demo</h2>
-          <span className="status">
-            {state?.portfolio.source === 'demo' ? 'ACTIVE' : 'AVAILABLE'}
-          </span>
+          <h2>Demo Mode</h2>
+          <span className="status">{!live ? 'ACTIVE · SIMULATED FUNDS' : 'AVAILABLE'}</span>
           <p className="inline-note">
-            A complete simulated portfolio with five market scenarios, policy checks, approvals, and
-            receipts. No keys or funds required.
+            <strong>Explore Wardyn instantly with simulated funds.</strong>
+            <br />
+            No Binance account, credentials, or real money required.
           </p>
           <button
             className="button secondary"
-            disabled={busy}
+            disabled={busy || !live}
             onClick={() => void mutate({ command: 'scenario', scenario: 'balanced' })}
           >
-            Start a fresh demo
+            {live ? 'Switch to Demo' : 'Demo active'}
+          </button>
+        </section>
+        <section className={`panel connection-card ${live ? 'active-connection' : ''}`}>
+          <span className="connection-icon">
+            <Plug size={22} />
+          </span>
+          <h2>Live Binance</h2>
+          <span className={`status ${state.connection.status === 'ERROR' ? 'attention' : ''}`}>
+              {busy && !live ? 'CONNECTING' : state.connection.status}
+            {live ? ` · ${state.connection.canTrade ? 'TRADING ENABLED' : 'READ ONLY'}` : ''}
+          </span>
+          <p className="inline-note">
+            <strong>
+              Connect your Binance account and let Wardyn monitor your real positions.
+            </strong>
+          </p>
+          {state.connection.message && (
+            <p role="alert" className="negative inline-note">
+              {state.connection.message}
+            </p>
+          )}
+          <div className="connection-meta">
+            <div>
+              <span>Environment</span>
+              <strong>
+                {state.connection.environment?.replace('-', ' ').toUpperCase() ?? 'NOT CONNECTED'}
+              </strong>
+            </div>
+            <div>
+              <span>Account</span>
+              <strong>{live ? 'Spot balances' : '—'}</strong>
+            </div>
+            <div>
+              <span>Permissions</span>
+              <strong>
+                {live
+                  ? state.connection.canTrade
+                    ? 'Read + approved Spot trades'
+                    : 'Read balances and markets'
+                  : '—'}
+              </strong>
+            </div>
+          </div>
+          <button
+            className={`button ${live ? 'secondary' : 'primary'}`}
+            disabled={busy}
+            onClick={() => void mutate({ command: live ? 'disconnect' : 'connect' })}
+          >
+            {busy ? 'Connecting…' : live ? 'Disconnect' : 'Connect Binance'}
           </button>
         </section>
         <section className="panel connection-card">
           <span className="connection-icon">
-            <Plug size={22} />
+            <ShieldCheck size={22} />
           </span>
-          <h2>Binance Skills Hub · CLI</h2>
-          <span className="status">
-            {state?.portfolio.source === 'binance-cli'
-              ? 'CONNECTED · READ ONLY'
-              : 'LOCAL SETUP REQUIRED'}
+          <h2>Execution</h2>
+          <span className="subtle-tag">
+            {state.executionMode === 'approval_required'
+              ? 'APPROVAL REQUIRED · LIVE FUNDS'
+              : 'MONITOR ONLY'}
           </span>
           <p className="inline-note">
-            Read balances, tickers, and candles through Binance’s official CLI. Install and
-            authorize the CLI on this server, then enable account reads.
+            Live execution is off by default. Approval Required is available only when the server
+            enables it and the connected account reports Spot trading permission.
           </p>
-          <button
-            className="button primary"
-            disabled={busy}
-            onClick={() => void mutate({ command: 'connect' })}
+          <select
+            aria-label="Execution mode"
+            value={state.executionMode}
+            disabled={!live || busy}
+            onChange={(event) =>
+              void mutate({ command: 'execution-mode', mode: event.target.value })
+            }
           >
-            Load Binance account
-          </button>
-          <p className="inline-note">
-            Local installation only. No live trading adapter is enabled.
-          </p>
+            <option value="monitor_only">Monitor Only</option>
+            <option value="approval_required">Approval Required</option>
+          </select>
         </section>
         <section className="panel connection-card">
           <span className="connection-icon">
             <Radio size={22} />
           </span>
-          <h2>Public Binance market data</h2>
-          <p>
-            Fetch current BTC, BNB, and SOL prices from official public REST endpoints. This preview
-            does not connect or change your portfolio.
+          <h2>Market Data</h2>
+          <span className="status">BINANCE · LIVE</span>
+          <p className="inline-note">
+            Connected portfolios use official Binance CLI tickers and recent candles. This public
+            preview remains separate from account state.
           </p>
           <button
             className="button secondary"
             disabled={loading}
             onClick={() => void loadMarkets()}
           >
-            {loading ? 'Fetching…' : 'Check live markets'}
+            {loading ? 'Fetching…' : 'Check public markets'}
           </button>
           {error && (
             <p role="alert" className="negative inline-note">
@@ -109,25 +163,37 @@ export function Connections() {
             </div>
           ))}
         </section>
-        <section className="panel connection-card">
+        <section className="panel connection-card agent-os-panel">
           <span className="connection-icon">
             <ShieldCheck size={22} />
           </span>
-          <h2>Binance MCP</h2>
-          <span className="subtle-tag">DISCOVERY UTILITY · NOT CONNECTED</span>
+          <h2>Binance Agent OS</h2>
+          <span className="subtle-tag">BINANCE SKILLS · OFFICIAL CLI</span>
           <p className="inline-note">
-            The repository includes a tool-schema discovery utility for Binance’s documented MCP
-            endpoint. OAuth connection and MCP trading are not implemented. Wardyn’s implemented
-            Agent OS route uses the official Skills Hub CLI.
+            Wardyn uses the official Binance Skills CLI for account, market, and optional approved
+            Spot-order operations. The connected AI client can separately use Binance MCP with its
+            scoped Agentic sub-account.
           </p>
+          <div className="agent-events">
+            {state.runs[0].events.map((event) => (
+              <div key={`${event.stage}-${event.timestamp}`}>
+                <span>
+                  {event.stage === 'ACT' && event.message.includes('Awaiting') ? '○' : '✓'}
+                </span>
+                <p>
+                  <strong>{event.stage}</strong>
+                  {event.message}
+                </p>
+              </div>
+            ))}
+          </div>
           <a
             className="button secondary"
             href="https://developers.binance.com/en/docs/agent-native/mcp-server/agentic"
             target="_blank"
             rel="noreferrer"
           >
-            Official MCP documentation
-            <ArrowUpRight size={15} />
+            Official MCP documentation <ArrowUpRight size={15} />
           </a>
         </section>
       </div>

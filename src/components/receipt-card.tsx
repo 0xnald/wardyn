@@ -1,5 +1,5 @@
 'use client';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Check, Download, ShieldCheck, X } from 'lucide-react';
 import type { WardynReceipt } from '../domain/models';
 import { useWorkspace } from './workspace-context';
@@ -13,6 +13,7 @@ export function ReceiptCard({
 }) {
   const { busy, mutate, state } = useWorkspace();
   const dialog = useRef<HTMLDialogElement>(null);
+  const [confirmation, setConfirmation] = useState('');
   const d = receipt.decision;
   const after = receipt.after ?? receipt.expectedAfter;
   const beforeWeight =
@@ -37,7 +38,10 @@ export function ReceiptCard({
           </strong>
           <small>
             {new Date(receipt.createdAt).toLocaleDateString('en-GB')} · {time(receipt.createdAt)} ·{' '}
-            {receipt.before.source === 'demo' ? 'Simulation' : 'Live account data'}
+            Source:{' '}
+            {receipt.before.source === 'demo'
+              ? 'DEMO'
+              : `BINANCE ${receipt.before.environment.toUpperCase()}`}
           </small>
         </div>
         <ShieldCheck size={23} className="positive" />
@@ -87,6 +91,28 @@ export function ReceiptCard({
           </div>
         )}
         {receipt.verification && <p className="inline-note">{receipt.verification}</p>}
+        {receipt.execution && (
+          <div className="connection-meta section-gap">
+            <div>
+              <span>Binance order</span>
+              <strong>{receipt.execution.orderId}</strong>
+            </div>
+            <div>
+              <span>Executed quantity</span>
+              <strong>
+                {amount(receipt.execution.executedQuantity)} {d.asset}
+              </strong>
+            </div>
+            <div>
+              <span>Quote proceeds</span>
+              <strong>{usd(receipt.execution.cumulativeQuoteQuantity)}</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>{receipt.execution.status}</strong>
+            </div>
+          </div>
+        )}
         <details className="evidence-details" open={expanded}>
           <summary>Decision audit</summary>
           <p>
@@ -95,23 +121,34 @@ export function ReceiptCard({
               ? 'insufficient history for all protection checks'
               : 'rule confirmed'}
             . This is not a probability of profit.{' '}
-            {d.trade ? `Sell ${amount(d.trade.quantity)} ${d.trade.asset}. ` : ''}Simulations use
-            the quoted price and exclude fees, spread, and slippage.
+            {d.trade ? `Sell ${amount(d.trade.quantity)} ${d.trade.asset}. ` : ''}
+            {receipt.before.source === 'demo'
+              ? 'Simulations use the quoted price and exclude fees, spread, and slippage.'
+              : 'Live orders are revalidated before submission and verified from refreshed Binance balances.'}
           </p>
           <p className="inline-note">
-            Source: {receipt.before.source}. Policy triggers and the original portfolio are
-            preserved in the downloadable receipt.
+            Source:{' '}
+            {receipt.before.source === 'demo'
+              ? 'DEMO'
+              : `BINANCE ${receipt.before.environment.toUpperCase()}`}
+            . Policy triggers and the original portfolio are preserved in the downloadable receipt.
           </p>
         </details>
         {receipt.status === 'PENDING' && (
           <div className="receipt-actions">
             <button
               className="button primary"
-              disabled={busy || state?.portfolio.source !== 'demo'}
+              disabled={
+                busy || (state?.mode === 'binance' && state.executionMode !== 'approval_required')
+              }
               onClick={() => dialog.current?.showModal()}
             >
               <Check size={15} />
-              {state?.portfolio.source === 'demo' ? 'Approve action' : 'Execution unavailable'}
+              {state?.mode === 'demo'
+                ? 'Approve action'
+                : state?.executionMode === 'approval_required'
+                  ? 'Approve Binance Action'
+                  : 'Monitor Only'}
             </button>
             <button
               className="button secondary"
@@ -139,7 +176,9 @@ export function ReceiptCard({
         </button>
       </div>
       <dialog ref={dialog} className="approval-dialog">
-        <h2>Approve simulated action?</h2>
+        <h2>
+          {state?.mode === 'demo' ? 'Approve simulated action?' : 'Approve Binance Spot order?'}
+        </h2>
         <p>
           Sell{' '}
           <strong>
@@ -147,23 +186,45 @@ export function ReceiptCard({
           </strong>{' '}
           for an estimated <strong>{usd(d.trade?.estimatedProceedsUsdt ?? '0')}</strong>.
         </p>
-        <p className="inline-note">
-          This updates only your demo portfolio. No exchange order is placed. Review the original
-          receipt if the proposal has changed.
-        </p>
+        {state?.mode === 'demo' ? (
+          <p className="inline-note">
+            This updates only your demo portfolio. No exchange order is placed.
+          </p>
+        ) : (
+          <>
+            <p className="inline-note">
+              This submits a MARKET SELL against live funds through the configured Binance CLI, then
+              reloads the account to verify the result.
+            </p>
+            <label className="label" htmlFor={`confirm-${receipt.id}`}>
+              Type CONFIRM to authorize this order
+            </label>
+            <input
+              id={`confirm-${receipt.id}`}
+              value={confirmation}
+              onChange={(event) => setConfirmation(event.target.value)}
+              autoComplete="off"
+            />
+          </>
+        )}
         <div className="receipt-actions">
           <button className="button secondary" onClick={() => dialog.current?.close()}>
             Cancel
           </button>
           <button
             className="button primary"
-            disabled={busy}
+            disabled={busy || (state?.mode === 'binance' && confirmation !== 'CONFIRM')}
             onClick={async () => {
-              await mutate({ command: 'action', receiptId: receipt.id, approve: true });
+              await mutate({
+                command: 'action',
+                receiptId: receipt.id,
+                approve: true,
+                confirmation: state?.mode === 'binance' ? confirmation : undefined,
+              });
               dialog.current?.close();
             }}
           >
-            Confirm simulation
+            {state?.mode === 'demo' ? 'Confirm simulation' : 'Submit Binance order'}
           </button>
         </div>
       </dialog>

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useWorkspace } from './workspace-context';
-import { amount, assetNames, pct, time, usd } from './format';
+import { amount, assetNames, assetStyle, pct, time, usd } from './format';
 import { scenarios, type Scenario } from '../features/demo/provider';
 import { assessRisk, evaluatePolicy } from '../domain/evaluate';
 export function ScenarioControl() {
@@ -76,7 +76,9 @@ export function Dashboard() {
           {state.monitoring ? 'Wardyn is watching' : 'Ready when you are'}
         </span>
         <span>
-          {state.portfolio.positions.length} positions · Last scan {time(state.runs[0].startedAt)}
+          {state.portfolio.positions.length} positions ·{' '}
+          {state.mode === 'binance' ? 'Live Binance data' : 'Last scan'} · updated{' '}
+          {time(state.portfolio.observedAt)}
         </span>
         <Link href="/workspace/watch">
           View activity <ArrowRight size={14} />
@@ -86,7 +88,11 @@ export function Dashboard() {
         <Metric
           label="Portfolio value"
           value={usd(state.portfolio.totalValueUsdt)}
-          detail="Valued in USDT"
+          detail={
+            state.mode === 'binance'
+              ? `${state.portfolio.environment.toUpperCase()} · Binance Spot`
+              : 'Valued in simulated USDT'
+          }
           icon={<Wallet size={17} />}
         />
         <Metric
@@ -126,7 +132,7 @@ export function Dashboard() {
                 <div
                   className={`asset-bg ${p.asset}`}
                   key={p.asset}
-                  style={{ width: `${p.allocationPct}%` }}
+                  style={{ width: `${p.allocationPct}%`, ...assetStyle(p.asset) }}
                   title={`${p.asset} ${pct(p.allocationPct)}`}
                 />
               ))}
@@ -134,7 +140,7 @@ export function Dashboard() {
             <div className="allocation-legend">
               {state.portfolio.positions.map((p) => (
                 <div key={p.asset}>
-                  <span className={`asset-dot ${p.asset}`} />
+                  <span className={`asset-dot ${p.asset}`} style={assetStyle(p.asset)} />
                   <span>{p.asset}</span>
                   <strong>{pct(p.allocationPct)}</strong>
                 </div>
@@ -171,18 +177,23 @@ export function Dashboard() {
                       <tr key={p.asset}>
                         <td>
                           <Link href={`/workspace/positions/${p.asset}`} className="asset-cell">
-                            <span className={`asset-icon ${p.asset}`}>
+                            <span className={`asset-icon ${p.asset}`} style={assetStyle(p.asset)}>
                               {p.asset === 'BTC'
                                 ? '₿'
                                 : p.asset === 'SOL'
                                   ? '≋'
                                   : p.asset === 'BNB'
                                     ? '◇'
-                                    : '₮'}
+                                    : p.asset === 'USDT'
+                                      ? '₮'
+                                      : p.asset.slice(0, 1)}
                             </span>
                             <span>
                               <strong>{p.asset}</strong>
-                              <small>{assetNames[p.asset]}</small>
+                              <small>
+                                {state.mode === 'binance' ? 'LIVE · ' : ''}
+                                {assetNames[p.asset] ?? p.asset}
+                              </small>
                             </span>
                           </Link>
                         </td>
@@ -197,7 +208,7 @@ export function Dashboard() {
                           <span className="mini-track">
                             <span
                               className={`asset-bg ${p.asset}`}
-                              style={{ width: `${p.allocationPct}%` }}
+                              style={{ width: `${p.allocationPct}%`, ...assetStyle(p.asset) }}
                             />
                           </span>
                         </td>
@@ -231,14 +242,29 @@ export function Dashboard() {
               </table>
             </div>
           </section>
-          <section className="demo-panel">
-            <div>
-              <span className="eyebrow">PUT WARDYN TO WORK</span>
-              <h3>A change in the market. A measured response.</h3>
-              <p>Run a scenario through the same policy engine. All actions use simulated funds.</p>
-            </div>
-            <ScenarioControl />
-          </section>
+          {state.portfolio.unvaluedAssets.length > 0 && (
+            <section className="demo-panel">
+              <span className="eyebrow">UNVALUED BALANCES</span>
+              <h3>{state.portfolio.unvaluedAssets.length} assets are excluded from totals.</h3>
+              <p>
+                {state.portfolio.unvaluedAssets
+                  .map((asset) => `${asset.asset} ${amount(asset.quantity)} — ${asset.reason}`)
+                  .join(' · ')}
+              </p>
+            </section>
+          )}
+          {state.mode === 'demo' && (
+            <section className="demo-panel">
+              <div>
+                <span className="eyebrow">PUT WARDYN TO WORK</span>
+                <h3>A change in the market. A measured response.</h3>
+                <p>
+                  Run a scenario through the same policy engine. All actions use simulated funds.
+                </p>
+              </div>
+              <ScenarioControl />
+            </section>
+          )}
         </div>
         <aside className="right-column">
           <section className={`decision-preview panel ${featured ? 'has-action' : ''}`}>
