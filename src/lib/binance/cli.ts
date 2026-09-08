@@ -137,18 +137,18 @@ export class BinanceCliProvider implements BinanceProvider {
     const wslDistro = process.env.WARDYN_BINANCE_CLI_WSL_DISTRO;
     if (wslDistro && !/^[A-Za-z0-9._-]{1,64}$/.test(wslDistro))
       throw new Error('WARDYN_BINANCE_CLI_WSL_DISTRO contains unsupported characters.');
-    const executable = wslDistro
-      ? 'wsl.exe'
-      : process.env.WARDYN_BINANCE_CLI_PATH || 'binance-cli';
-    const invocation = wslDistro
-      ? ['-d', wslDistro, '--', '/root/.cargo/bin/binance-cli', ...cliArgs]
-      : cliArgs;
+    const wslPath = process.env.WARDYN_BINANCE_CLI_WSL_PATH || '/root/.cargo/bin/binance-cli';
+    if (wslDistro && !/^\/[A-Za-z0-9._\/-]{1,255}$/.test(wslPath))
+      throw new Error('WARDYN_BINANCE_CLI_WSL_PATH must be an absolute Linux path.');
+    const executable = wslDistro ? 'wsl.exe' : process.env.WARDYN_BINANCE_CLI_PATH || 'binance-cli';
+    const invocation = wslDistro ? ['-d', wslDistro, '--', wslPath, ...cliArgs] : cliArgs;
     try {
-      const { stdout } = await exec(
-        executable,
-        invocation,
-        { timeout: 20000, maxBuffer: 4 * 1024 * 1024, windowsHide: true, env: process.env },
-      );
+      const { stdout } = await exec(executable, invocation, {
+        timeout: 20000,
+        maxBuffer: 4 * 1024 * 1024,
+        windowsHide: true,
+        env: process.env,
+      });
       return JSON.parse(stdout);
     } catch {
       throw new Error(
@@ -176,15 +176,18 @@ export class BinanceCliProvider implements BinanceProvider {
     const markets: MarketSnapshot[] = [];
     for (let index = 0; index < unique.length; index += 5) {
       const batch = unique.slice(index, index + 5);
-      markets.push(...await Promise.all(
-      batch.map(async (asset) => {
-        const symbol = `${asset}USDT`;
-        const [ticker, candles] = await Promise.all([
-          this.call('ticker24hr', ['--symbol', symbol]),
-          this.call('klines', ['--symbol', symbol, '--interval', '1h', '--limit', '25']),
-        ]);
-        return parseMarket(asset, ticker, candles);
-      })));
+      markets.push(
+        ...(await Promise.all(
+          batch.map(async (asset) => {
+            const symbol = `${asset}USDT`;
+            const [ticker, candles] = await Promise.all([
+              this.call('ticker24hr', ['--symbol', symbol]),
+              this.call('klines', ['--symbol', symbol, '--interval', '1h', '--limit', '25']),
+            ]);
+            return parseMarket(asset, ticker, candles);
+          }),
+        )),
+      );
     }
     return [
       ...markets,
@@ -203,6 +206,8 @@ export class BinanceCliProvider implements BinanceProvider {
     if (!executionAssets().has(intent.asset))
       throw new Error(`${intent.asset} is not in the server execution allowlist.`);
     const ceiling = new Decimal(process.env.WARDYN_BINANCE_MAX_ORDER_USDT ?? '100');
+    if (!ceiling.isFinite() || ceiling.lte(0))
+      throw new Error('WARDYN_BINANCE_MAX_ORDER_USDT must be greater than zero.');
     if (new Decimal(intent.estimatedProceedsUsdt).gt(ceiling))
       throw new Error(`Trade exceeds the server order ceiling of ${ceiling.toFixed()} USDT.`);
     const symbol = (await this.loadSymbols()).find(

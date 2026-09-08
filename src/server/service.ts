@@ -80,44 +80,50 @@ export async function action(
     state.portfolio = receipt.after!;
     // Other proposals are based on the previous portfolio and must be reevaluated.
     invalidatePending(state);
-    state.runs.unshift({
-      id: crypto.randomUUID(),
-      startedAt: new Date().toISOString(),
-      events: [
-        { stage: 'VERIFY', message: receipt.verification!, timestamp: new Date().toISOString() },
-      ],
-      decisions: [receipt.decision],
-      risk: analyze(state.portfolio, state.policy, state.receipts).run.risk,
-    });
+    state.runs = [
+      {
+        id: crypto.randomUUID(),
+        startedAt: new Date().toISOString(),
+        events: [
+          { stage: 'VERIFY', message: receipt.verification!, timestamp: new Date().toISOString() },
+        ],
+        decisions: [receipt.decision],
+        risk: analyze(state.portfolio, state.policy, state.receipts).run.risk,
+      },
+      ...state.runs,
+    ].slice(0, 100);
   } else if (approve) {
     if (state.executionMode !== 'approval_required')
       throw new Error('Live execution is in Monitor Only mode.');
     if (confirmation !== 'CONFIRM')
       throw new Error('Type CONFIRM to authorize this Binance Spot order.');
     await executeLiveReceipt(state, index, new BinanceCliProvider());
-    state.runs.unshift({
-      id: crypto.randomUUID(),
-      startedAt: new Date().toISOString(),
-      events: [
-        {
-          stage: 'ACT',
-          message: 'Approved Binance Spot order submitted through Binance Skills CLI',
-          timestamp: new Date().toISOString(),
-        },
-        {
-          stage: 'VERIFY',
-          message: state.receipts[index].verification!,
-          timestamp: new Date().toISOString(),
-        },
-        {
-          stage: 'RECEIPT',
-          message: `Binance order ${state.receipts[index].execution!.orderId} preserved in receipt`,
-          timestamp: new Date().toISOString(),
-        },
-      ],
-      decisions: [state.receipts[index].decision],
-      risk: analyze(state.portfolio, state.policy, state.receipts).run.risk,
-    });
+    state.runs = [
+      {
+        id: crypto.randomUUID(),
+        startedAt: new Date().toISOString(),
+        events: [
+          {
+            stage: 'ACT',
+            message: 'Approved Binance Spot order submitted through Binance Skills CLI',
+            timestamp: new Date().toISOString(),
+          },
+          {
+            stage: 'VERIFY',
+            message: state.receipts[index].verification!,
+            timestamp: new Date().toISOString(),
+          },
+          {
+            stage: 'RECEIPT',
+            message: `Binance order ${state.receipts[index].execution!.orderId} preserved in receipt`,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+        decisions: [state.receipts[index].decision],
+        risk: analyze(state.portfolio, state.policy, state.receipts).run.risk,
+      },
+      ...state.runs,
+    ].slice(0, 100);
     state.revision += 1;
     return;
   } else {

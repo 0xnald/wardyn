@@ -66,7 +66,7 @@ class TestBinanceProvider implements BinanceProvider {
       execution: this.trading ? ('approval_required' as const) : ('monitor_only' as const),
     };
   }
-  async executeTrade(intent: TradeIntent, _idempotencyKey: string) {
+  async executeTrade(intent: TradeIntent) {
     this.executed = true;
     return {
       provider: 'binance-cli' as const,
